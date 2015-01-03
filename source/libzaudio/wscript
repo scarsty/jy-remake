@@ -1,0 +1,55 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+import os
+import string
+import os.path
+import sys
+
+top = "."
+out = "waf-build"
+
+def options(ctx):
+    ctx.load("gcc")
+
+def configure(ctx):
+    ctx.load("gcc")
+
+
+def build(ctx):
+    cwd = ctx.path.abspath()
+    src_files = """
+        music.c
+        mixer.c
+        load_voc.c
+        load_aiff.c
+        fluidsynth.c
+        dynamic_fluidsynth.c
+        effects_internal.c
+        effect_stereoreverse.c
+        effect_position.c
+    """
+    include_paths = [
+            cwd + "/../../sdk/include",
+            cwd + "/libfluidsynth/include",
+    ]
+    library_paths = [
+            cwd + "../../sdk/lib",
+    ]
+    defines = [
+            "USE_FLUIDSYNTH_MIDI",
+            "MID_MUSIC",
+    ]
+    cwd = ctx.path.abspath()
+    ctx.recurse(["libfluidsynth"])
+    ctx.stlib(
+            source = src_files, 
+            target = "zaudio", 
+            cflags = "-O2",
+            defines = defines,
+            includes = include_paths,
+            libpath = library_paths,
+            name = "zaudio",
+            use = "fluidsynth"
+            )
+

@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+import os, string 
+
+top = "."
+out = "waf-build"
+
+
+def options(ctx):
+    ctx.load("compiler_c")
+
+def configure(ctx):
+    ctx.load("compiler_c")
+
+def build(ctx):
+    cwd = ctx.path.abspath()
+    defines = [ 
+        "HAVE_PTHREAD_H",
+        "HAVE_STDLIB_H",
+        "HAVE_STDIO_H",
+        "HAVE_MATH_H",
+        "HAVE_STRING_H",
+        "HAVE_STDARG_H",
+        "HAVE_WINDOWS_H",
+        "HAVE_UNISTD_H",
+        "HAVE_ERRNO_H",
+        "HAVE_FCNTL_H",
+        "HAVE_SYS_STAT_H",
+        "HAVE_SYS_TIME_H",
+        "HAVE_SYS_TYPES_H",
+        "HAVE_LIMITIS_H",
+        "HAVE_IO_H",
+        "FLUIDSYNTH_NOT_A_DLL",
+    ]
+    # source files
+    src_files = """
+            midi/fluid_midi.c
+            utils/fluid_sys.c
+            utils/fluid_settings.c
+            utils/fluid_ringbuffer.c
+            utils/fluid_list.c
+            utils/fluid_hash.c
+            utils/fluid_conv.c
+            synth/fluid_voice.c
+            synth/fluid_tuning.c
+            synth/fluid_synth.c
+            synth/fluid_mod.c
+            synth/fluid_gen.c
+            synth/fluid_event.c
+            synth/fluid_chan.c
+            sfloader/fluid_ramsfont.c
+            sfloader/fluid_defsfont.c
+            rvoice/fluid_rvoice_mixer.c
+            rvoice/fluid_rvoice_event.c
+            rvoice/fluid_rvoice_dsp.c
+            rvoice/fluid_rvoice.c
+            rvoice/fluid_rev.c
+            rvoice/fluid_lfo.c
+            rvoice/fluid_iir_filter.c
+            rvoice/fluid_chorus.c
+            rvoice/fluid_adsr_env.c
+    """
+    # include paths
+    include_paths = [
+            cwd,
+            cwd + "/../include",
+            cwd + "/midi",
+            cwd + "/sfloader",
+            cwd + "/utils",
+            cwd + "/rvoice",
+            cwd + "/synth",
+            cwd + "/myglib",
+            cwd + "/../../../../sdk/include",
+            ]
+    ctx.stlib(
+            source = src_files, 
+            target = "fluidsynth", 
+            name = "fluidsynth",
+            libpath = cwd + "/../../../sdk/lib",
+            cflags = "-O2",
+            defines = defines,
+            includes = include_paths,
+            )
+

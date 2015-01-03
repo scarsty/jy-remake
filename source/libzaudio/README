@@ -1,0 +1,8 @@
+libzaudio
+=========
+
+This is a stripped down version of SDL_mixer 2.0 made by Zgames
+
+Features:
+ Use FluidSynth to play midi files.
+ Plays *.wav & *.mid files only.

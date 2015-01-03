@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+# encoding: utf-8
+# Author: Zgames <zgames(at)yeah(dot)net>
+# Waf 构建文件
+# 使用方法：在命令行输入
+# python waf configure build install
+
+import os, string, os.path
+
+top = "."
+out = "waf-build"
+
+def options(ctx):
+    ctx.load("gcc gxx winres")
+
+
+def configure(ctx):
+    ctx.load("gcc gxx winres")
+
+
+def build(ctx):
+    cwd = ctx.path.abspath()
+    src_files = """
+        jyres.rc
+        mainmap.cpp
+        script.cpp
+        main.cpp
+        charset.cpp
+        util.cpp
+        lodepng.cpp
+        image.cpp
+        audio_sdl.cpp
+        video_sdl2.cpp
+        input_sdl.cpp
+        font.cpp
+        sdlxx.cpp
+    """
+    library_paths = [
+        cwd + "/../sdk/lib",
+    ]
+    include_paths = [
+        cwd + "/../sdk/include",
+        cwd + "/libzaudio",
+        cwd + "/libfluidsynth/include",
+    ]
+    install_path = cwd + "/../release"
+    shared_libs = "wsock32 glib-2.0.dll gthread-2.0.dll SDL2main SDL2"
+    static_libs = "mingw32 lua"
+    ctx.recurse(["libzaudio"])
+    ctx(
+        rule = "copy ${SRC} ${TGT}",
+        source = "script/main.lua",
+        target = "main.lua",
+        install_path = install_path,
+    )
+    ctx.program(
+        source = src_files, 
+        target = "legend", 
+        libpath = library_paths,
+        linkflags = "-mwindows",
+        cxxflags = "-O2",
+        lib = shared_libs,
+        stlib = static_libs,
+        includes = include_paths,
+        install_path = install_path,
+        use = ["zaudio"],
+    )

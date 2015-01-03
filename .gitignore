@@ -1,0 +1,6 @@
+waf-build/
+/release/
+.lock-waf*
+/document/
+*.swp
+waf-*
