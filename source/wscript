@@ -51,7 +51,7 @@ def build(ctx):
         rule = "copy ${SRC} ${TGT}",
         source = "script/main.lua",
         target = "main.lua",
-        install_path = install_path,
+        install_path = install_path + "/script"
     )
     ctx.program(
         source = src_files, 
