@@ -54,8 +54,8 @@ static int HAPI_GetDialogString(lua_State *pL)
 static int HAPI_GetFileLength(lua_State *pL)
 {
     const char *str = lua_tostring(pL, 1);
-    lua_Number length = Util_GetFileLength(str);
-    lua_pushnumber(pL, length);
+    RWops rw(str);
+    lua_pushnumber(pL, rw.getLength());
     return 1;
 }
 
@@ -843,7 +843,7 @@ int Script_LoadAndRun(const char *filename)
 {
 	lua_State *pL = theLuaState;
 	int ret = 0;
-    MemoryBlock buf(Util_GetFileLength(filename) + 1);
+    MemoryBlock buf(RWops(filename).getLength() + 1);
     buf.readFile(filename);
     static_cast<char *>(buf.getPtr())[buf.getSize()] = 0; // add null terminator
 

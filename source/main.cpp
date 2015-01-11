@@ -5,6 +5,7 @@ Remake of the classic RPG Game Heros Of Jinyong
 */
 
 #include <memory>
+#include <SDL.h>
 #include "audio.h"
 #include "video.h"
 #include "script.h"

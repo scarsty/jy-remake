@@ -461,7 +461,6 @@ int JY_PicLoadFile(const char *idxfilename, const char *grpfilename, int fileid)
 	// 读取idx文件
 
     std::auto_ptr<RWops> rw(new RWops(idxfilename, "r"));
-    //pic_file[fileid].num = Util_GetFileLength(idxfilename) / 4;	//idx 贴图个数
     pic_file[fileid].num = rw->getLength() / 4;
     pic_file[fileid].idx = (int *) Util_malloc((pic_file[fileid].num + 1) * 4);
     //读取贴图idx文件
@@ -471,7 +470,6 @@ int JY_PicLoadFile(const char *idxfilename, const char *grpfilename, int fileid)
 
 	//读取grp文件
     rw.reset(new RWops(grpfilename, "r"));
-    //pic_file[fileid].filelength = Util_GetFileLength(grpfilename);
     pic_file[fileid].filelength = rw->getLength();
     pic_file[fileid].grp = (unsigned char *) Util_malloc(pic_file[fileid].filelength);
     rw->read(pic_file[fileid].grp, 1, pic_file[fileid].filelength);

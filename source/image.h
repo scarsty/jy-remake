@@ -3,12 +3,13 @@
 
 #include <SDL_video.h>
 #include <SDL_stdinc.h>
+#include "util.h"
 
 static const int PIC_JUST_DRAW  = 0;
-static const int PIC_IGNORE_OFFSET = 1;
-static const int PIC_DO_ALPHA_BLENDING = 1<<1;
-static const int PIC_BLACK = 1<<2;
-static const int PIC_WHITE = 1<<3;
+static const int PIC_IGNORE_OFFSET = BIT(0);
+static const int PIC_DO_ALPHA_BLENDING = BIT(1);
+static const int PIC_BLACK = BIT(2);
+static const int PIC_WHITE = BIT(3);
 
 SDL_Surface 	*Image_LoadPNG(const char *filename);
 SDL_Surface 	*Image_LoadPNG_Mem(Uint8 *mem, size_t length);

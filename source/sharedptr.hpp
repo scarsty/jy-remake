@@ -197,7 +197,7 @@ public:
  
   template<class Y> void reset(Y * p)
   {
-    ((p == 0 || p != px) ? (void)0 : _assert("p == 0 || p != px", "sharedptr.hpp", 236));
+    //((p == 0 || p != px) ? (void)0 : _assert("p == 0 || p != px", "sharedptr.hpp", 236));
     this_type(p).swap(*this);
   }
  

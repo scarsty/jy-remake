@@ -30,15 +30,17 @@ def build(ctx):
         effect_position.c
     """
     include_paths = [
-            cwd + "/../../sdk/include",
+            ctx.env.SDL_INCLUDE_PATH,
             cwd + "/libfluidsynth/include",
     ]
     library_paths = [
-            cwd + "/../../sdk/lib",
+            #cwd + "/../../sdk/SDL2/lib",
+            ctx.env.SDL_LIB_PATH
     ]
     defines = [
             "USE_FLUIDSYNTH_MIDI",
             "MID_MUSIC",
+            "HAVE_STRDUP",
     ]
     cwd = ctx.path.abspath()
     ctx.recurse(["libfluidsynth"])

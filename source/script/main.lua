@@ -66,7 +66,6 @@ end
 --设置全局变量CC，保存游戏中使用的常数
 function SetGlobalConst()
 	-- SDL 键码定义，这里名字仍然使用directx的名字
---[[
 -- 这些值适用于 SDL 1.2 版本
 	VK_ESCAPE=27
 	VK_Y=121
@@ -83,23 +82,24 @@ function SetGlobalConst()
 	VK_DOWN=SDLK_DOWN
 	VK_LEFT=SDLK_LEFT
 	VK_RIGHT=SDLK_RIGHT
---]]
+--[[
     VK_ESCAPE=27
     VK_Y=121
 	VK_N=110
 	VK_SPACE=32
 	VK_RETURN=13
+--]]
 
-	--[[
 	SDLK_UP=273
 	SDLK_DOWN=274
 	SDLK_LEFT=276
 	SDLK_RIGHT=275
-	--]]
+    --[[
 	SDLK_UP = 1073741906
 	SDLK_DOWN = 1073741905 
 	SDLK_LEFT = 1073741904
 	SDLK_RIGHT = 1073741903
+    --]]
 
 
 	VK_UP=SDLK_UP

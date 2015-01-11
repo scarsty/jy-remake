@@ -1,10 +1,9 @@
 #ifndef JY_VIDEO_H
 #define JY_VIDEO_H
 
-//#include <SDL2/SDL_video.h>
-#include "sdlxx.h"
-
-//#define COLOR_KEY 0x706020
+#include <SDL_video.h>
+#include <SDL_stdinc.h>
+#include "util.h"
 
 static const Uint32 COLOR_KEY = 0x70620;
 
