@@ -35,32 +35,35 @@ public:
 // Exception
 //////////////////////////////////////////////////////////////////////////////////////////
 
-#if 0
 class SDLException {
 public:
-    SDLException(const char *str) {
-        strncpy(m_message, str, sizeof(m_message));
+    SDLException(const char *str) throw() {
+        strncpy(mszMessage, str, sizeof(mszMessage));
     }
-    const char *getStr() const { return m_message; }
+    const char *what() const throw() { return mszMessage; }
 private:
-    char m_message[512];
+    char mszMessage[512];
 };
 
 class HardwareException : public SDLException {
 public:
-    HardwareException(const char *str) : SDLException(str) {}
+    HardwareException(const char *str) throw(): SDLException(str) {}
 };
 
 class MemoryException : public SDLException {
 public:
-    MemoryException(const char *str) : SDLException(str) {}
+    MemoryException(const char *str) throw(): SDLException(str) {}
+};
+
+class ResourceException : public SDLException {
+public:
+    ResourceException(const char *str) throw(): SDLException(str) {}
 };
 
 class GameException : public SDLException {
 public:
-    GameException(const char *str) : SDLException(str) {}
+    GameException(const char *str) throw(): SDLException(str) {}
 };
-#endif
 
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -69,38 +72,32 @@ public:
 
 class RWops {
 private:
-    SDL_RWops *m_rwops;
+    SDL_RWops *_rw;
 public:
-    RWops() : m_rwops(0) {}
-    ~RWops() { close(); }
-
-
-    bool ready() const { return m_rwops != NULL; }
-
-    int fromFile(const char *filename, const char *mode);
-    int fromConstMem(const void *mem, int size);
-    int fromFp(FILE *fp, bool autoClose);
-    int fromMem(void *mem, int size);
-    void close();
+    ~RWops() throw();
+    bool ready() const { return _rw != NULL; }
+    RWops(const char *filename, const char *mode);
+    RWops(const void *mem, int size);
+    RWops(FILE *fp, bool autoClose);
+    RWops(void *mem, int size);
     size_t read(void *buf, size_t size, size_t maxnum);
     size_t write(void *buf, size_t size, size_t num);
     Sint64 seek(Sint64 offset, int whence);
     Sint64 tell();
     Sint64 getLength() const;
-    size_t writeBe16(Uint16 value) { return SDL_WriteBE16(m_rwops, value); }
-    size_t writeBe32(Uint32 value) { return SDL_WriteBE32(m_rwops, value); }
-    size_t writeBe64(Uint64 value) { return SDL_WriteBE64(m_rwops, value); }
-    size_t writeLe16(Uint16 value) { return SDL_WriteLE16(m_rwops, value); }
-    size_t writeLe32(Uint16 value) { return SDL_WriteLE32(m_rwops, value); }
-    size_t writeLe64(Uint64 value) { return SDL_WriteLE64(m_rwops, value); }
-    Uint16 readBe16() { return SDL_ReadBE16(m_rwops); }
-    Uint32 readBe32() { return SDL_ReadBE32(m_rwops); }
-    Uint32 readBe64() { return SDL_ReadBE64(m_rwops); }
-    Sint16 readLe16() { return SDL_ReadLE16(m_rwops); }
-    Sint32 readLe32() { return SDL_ReadLE32(m_rwops); }
-    Sint64 readLe64() { return SDL_ReadLE64(m_rwops); }
-
-    operator SDL_RWops*() { return m_rwops; }
+    size_t writeBe16(Uint16 value) { return SDL_WriteBE16(_rw, value); }
+    size_t writeBe32(Uint32 value) { return SDL_WriteBE32(_rw, value); }
+    size_t writeBe64(Uint64 value) { return SDL_WriteBE64(_rw, value); }
+    size_t writeLe16(Uint16 value) { return SDL_WriteLE16(_rw, value); }
+    size_t writeLe32(Uint16 value) { return SDL_WriteLE32(_rw, value); }
+    size_t writeLe64(Uint64 value) { return SDL_WriteLE64(_rw, value); }
+    Uint16 readBe16() { return SDL_ReadBE16(_rw); }
+    Uint32 readBe32() { return SDL_ReadBE32(_rw); }
+    Uint32 readBe64() { return SDL_ReadBE64(_rw); }
+    Sint16 readLe16() { return SDL_ReadLE16(_rw); }
+    Sint32 readLe32() { return SDL_ReadLE32(_rw); }
+    Sint64 readLe64() { return SDL_ReadLE64(_rw); }
+    operator SDL_RWops*() { return _rw; }
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -109,78 +106,66 @@ public:
 
 class Window {
 private:
-    SDL_Window *m_window;
+    SDL_Window *_window;
 public:
-    Window() : m_window(0) {}
-    ~Window() { destroy(); }
-    int create(const char *title, int x, int y, int w, int h, Uint32 flags);
-    void destroy(); 
-    operator SDL_Window*() { return m_window; }
+    Window(const char *title, int x, int y, int w, int h, Uint32 flags);
+    ~Window() throw();
+    operator SDL_Window*() { return _window; }
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
-// Renderer
+// class Renderer
 //////////////////////////////////////////////////////////////////////////////////////////
 
 class Renderer {
 private:
-    SDL_Renderer *m_renderer;
+    SDL_Renderer *_renderer;
 public:
-    Renderer() : m_renderer(0) {}
-    ~Renderer() { destroy(); }
-    void destroy();
-    int create(SDL_Window *win, int index, Uint32 flags);
-    operator SDL_Renderer*() { return m_renderer; }
+    Renderer(SDL_Window *window, int index, Uint32 flags);
+    ~Renderer() throw();
+    operator SDL_Renderer*() { return _renderer; }
 
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
-// Surface
+// class Surface
 //////////////////////////////////////////////////////////////////////////////////////////
 
 class Surface {
 private:
-    SDL_Surface *m_surface;
+    SDL_Surface *_surface;
 public:
     //typedef std::shared_ptr<Surface> pointer;
     
-    bool ready() const { return m_surface != NULL; }
-    Surface() : m_surface(0) {}
-    //Surface(const Surface &copy) throw(HardwareException);
-    explicit Surface(SDL_Surface *m_surface);
-    ~Surface() { destroy(); }
+    Surface(Uint32 flags, int w, int h, int depth,
+            Uint32 Rmas, Uint32 Gmask, Uint32 Bmask, Uint32 Amask);
+    Surface(const char *filename);
+    Surface(const Surface& copy);
+    ~Surface() throw();
+#if 0
     int create(Uint32 flags, int w, int h, int depth, Uint32 Rmask, Uint32 Gmask, Uint32 Bmask, Uint32 Amask);
     int createFrom(void *ptr, int w, int h, int depth, int pitch, Uint32 rmask, Uint32 gmak, Uint32 bmask, Uint32 amask);
-    void destroy();
-    operator SDL_Surface*() { return m_surface; }
-    int loadBmp(const char *filename);
+#endif
+    operator SDL_Surface*() { return _surface; }
     int setColorKey(Uint8 r, Uint8 g, Uint8 b);
     //pointer convert(SDL_Surface *surf);
-    Size getSize() const { return Size(m_surface->w, m_surface->h); }
+    Size getSize() const { return Size(_surface->w, _surface->h); }
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
-// Texture
+// class Texture
 //////////////////////////////////////////////////////////////////////////////////////////
 
 class Texture {
 private:
-    SDL_Texture *m_texture;
+    SDL_Texture *_texture;
 public:
     //typedef std::shared_ptr<Texture> pointer;
-    Texture() : m_texture(0) {}
-    Texture(SDL_Renderer *renderer, Uint32 format, int access, int w, int h)
-    {
-        if (m_texture == NULL) {
-            create(renderer, format, access, w, h);
-        }
-    }
-    ~Texture() { destroy(); }
-    void destroy();
-    int create(SDL_Renderer *renderer, Uint32 format, int access, int w, int h);
-    operator SDL_Texture*() { return m_texture; }
-    int loadBmp(SDL_Renderer *renderer, const char *filename);
-    int fromSurface(SDL_Renderer *renderer, SDL_Surface *surface);
+    Texture(SDL_Renderer *renderer, Uint32 format, int access, int w, int h);
+    Texture(SDL_Renderer *renderer, const char *filename);
+    Texture(SDL_Renderer *renderer, Surface& surf);
+    ~Texture() throw();
+    operator SDL_Texture*() const { return _texture; }
 };
 
 #endif // JY_SDLXX_H

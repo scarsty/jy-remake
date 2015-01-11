@@ -4,3 +4,4 @@ waf-build/
 /document/
 *.swp
 waf-*
+tags

@@ -32,8 +32,8 @@ def build(ctx):
         audio_sdl.cpp
         video_sdl2.cpp
         input_sdl.cpp
-        font.cpp
         sdlxx.cpp
+        font.cpp
     """
     library_paths = [
         cwd + "/../sdk/lib",
@@ -63,5 +63,5 @@ def build(ctx):
         stlib = static_libs,
         includes = include_paths,
         install_path = install_path,
-        use = ["zaudio"],
+        use = ["zaudio", "sdlfont"],
     )

@@ -47,11 +47,16 @@ public:
 
 private:
     TBuilding buildings[kMaxBuildings];
-    MemoryBlock earthLayerData;
-    MemoryBlock surfaceLayerData;
-    MemoryBlock buildingLayerData;
-    MemoryBlock buildxLayerData;
-    MemoryBlock buildyLayerData;
+    //MemoryBlock earthLayerData;
+    //MemoryBlock surfaceLayerData;
+    //MemoryBlock buildingLayerData;
+    //MemoryBlock buildxLayerData;
+    //MemoryBlock buildyLayerData;
+    std::auto_ptr<MemoryBlock> _earthLayerData;
+    std::auto_ptr<MemoryBlock> _surfaceLayerData;
+    std::auto_ptr<MemoryBlock> _buildingLayerData;
+    std::auto_ptr<MemoryBlock> _buildxLayerData;
+    std::auto_ptr<MemoryBlock> _buildyLayerData;
 };
 
 
@@ -84,8 +89,11 @@ public:
     int draw(int sceneid, int x, int y, int xoff, int yoff, int Mypic);
 
 private:
-    MemoryBlock mapData;
-    MemoryBlock eventData;
+    //MemoryBlock mapData;
+    //MemoryBlock eventData;
+
+    std::auto_ptr<MemoryBlock> _mapData;
+    std::auto_ptr<MemoryBlock> _eventData;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////

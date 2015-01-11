@@ -4,120 +4,88 @@ Remake of the classic RPG Game Heros Of Jinyong
 ====================================================================================================
 */
 
+#include <memory>
 #include "audio.h"
 #include "video.h"
 #include "script.h"
 #include "image.h"
 #include "mainmap.h"
 
-
-
-
 namespace jy {
 
-    // for handy use
-    class SDL {
-    public:
-        SDL() { }
+class Sdl2Initer {
+public:
+    Sdl2Initer();
+    ~Sdl2Initer();
+    bool inited() const;
+};
 
-        ~SDL() { destroy(); }
-
-        bool ready() const
-        {
+Sdl2Initer::Sdl2Initer()
+{
+    if (!inited()) {
+        if (SDL_Init(0) < 0) {
+            throw HardwareException("SDL_Init() failed.");
         }
+    }
+}
 
-        int create()
-        {
-            if (SDL_Init(0) < 0) {
-                return 1;
-            }
-            return 0;
-        }
+Sdl2Initer::~Sdl2Initer()
+{
+    SDL_Quit();
+}
 
-        void destroy()
-        {
-            SDL_Quit();
-        }
-    };
-    class Game {
-    public:
-        Game() { }
+bool Sdl2Initer::inited() const
+{
+    return SDL_WasInit(0);
+}
 
-        ~Game() { destroy(); }
 
-        int create()
-        {
-            if (Init_Cache())
-                return 1;
-            JY_PicInit();
-            return 0;
-        }
+class GameIniter {
+public:
+    GameIniter();
+    ~GameIniter();
+};
 
-        void destroy()
-        {
-            JY_PicInit();
-            JY_UnloadMMap();
-            JY_UnloadSMap();
-            JY_UnloadWarMap();
-        }
-    };
+GameIniter::GameIniter()
+{
+    if (Init_Cache()) {
+        throw GameException("Init_Cache() failed.");
+    }
+    JY_PicInit();
+}
 
-    // Script engine
-    class Script {
-    public:
-        Script() {}
+GameIniter::~GameIniter()
+{
+    JY_PicInit();
+    JY_UnloadMMap();
+    JY_UnloadSMap();
+    JY_UnloadWarMap();
+}
 
-        ~Script() { destroy(); }
+class ScriptIniter {
+public:
+    ScriptIniter();
+    ~ScriptIniter();
+    int loadAndRun(const char *filename);
+};
 
-        int loadAndRun(const char *filename)
-        {
-            return Script_LoadAndRun(filename);
-        }
+ScriptIniter::ScriptIniter()
+{
+    if (Script_Init()) {
+        throw HardwareException("Script_Init() failed.");
+    }
+}
 
-        int create()
-        {
-            if (Script_Init())
-                return 1;
-            return 0;
-        }
+ScriptIniter::~ScriptIniter()
+{
+    Script_Quit();
+}
 
-        void destroy()
-        {
-            Script_Quit();
-        }
-    };
+int ScriptIniter::loadAndRun(const char *filename)
+{
+    return Script_LoadAndRun(filename);
+}
 
-    class Audio {
-    public:
-        Audio() {}
-        ~Audio() { destroy(); }
-
-        int create()
-        {
-            Audio_Init();
-        }
-
-        void destroy()
-        {
-            Audio_Quit();
-        }
-    };
-
-    class Video {
-    public:
-        Video() {}
-        ~Video() { destroy(); }
-
-        int create()
-        {
-            return Video_Init(960, 600);
-        }
-
-        void destroy()
-        {
-            Video_Quit();
-        }
-    };
 } // namespace jy
 
 //========================================================================================
@@ -127,20 +95,17 @@ namespace jy {
 
 int main(int argc, char *argv[])
 {
-    jy::SDL     sdl;
-    jy::Video   video;
-    jy::Audio   audio;
-    jy::Game    game;
-    jy::Script  script;
-
-    sdl.create();
-    video.create();
-    audio.create();
-    game.create();
-    script.create();
-
-    script.loadAndRun("script/main.lua");
-
+    try {
+        jy::Sdl2Initer    sdl2;
+        std::auto_ptr<Video> video(Video::getInstance());
+        std::auto_ptr<Audio> audio(Audio::getInstance());
+        jy::GameIniter    game;
+        jy::ScriptIniter  script;
+        script.loadAndRun("script/main.lua");
+    }
+    catch (const SDLException& e) {
+        DLOG(e.what());
+    }
 	return 0;
 }
 

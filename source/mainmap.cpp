@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <memory.h>
+#include <memory>
 #include "image.h"
 #include "video.h"
 #include "util.h"
@@ -26,27 +27,22 @@ WorldMap theWorldMap;
 
 int SceneMap::load(const char *sfname, const char *dfname)
 {
-    mapData.create(sfname);
-    eventData.create(dfname);
-	return 0;
-
-wrong:
-    return 1;
+    //_mapData->create(sfname);
+    //_eventData->create(dfname);
+    _mapData.reset(new MemoryBlock(sfname));
+    _eventData.reset(new MemoryBlock(dfname));
 }
 
 
 int SceneMap::save(const char *sceneFilename, const char *eventFilename)
 {
-	int i;
-    RWops file;
+    std::auto_ptr<RWops> rw(new RWops(sceneFilename, "w"));
+    rw->write(_mapData->getPtr(), 1, _mapData->getSize());
 
-    file.fromFile(sceneFilename, "w");
-    file.write(mapData.ptr(), 1, mapData.size());
-    file.close();
 
-    file.fromFile(eventFilename, "w");
-    file.write(eventData.ptr(), 1, eventData.size());
-    file.close();
+    rw.reset(new RWops(eventFilename, "w"));
+    rw->write(_mapData->getPtr(), 1, _eventData->getSize());
+    rw.reset(NULL);
 
 	return 0;
 }
@@ -54,8 +50,10 @@ int SceneMap::save(const char *sceneFilename, const char *eventFilename)
 
 void SceneMap::unload()
 {
-    mapData.destroy();
-    eventData.destroy();
+    //_mapData->destroy();
+    //_eventData->destroy();
+    _mapData.reset(NULL);
+    _eventData.reset(NULL);
 }
 
 
@@ -68,7 +66,7 @@ int SceneMap::getS(int id, int x, int y, int level)
 		return 0;
 	}
 	s = kWidth * kHeight * (id * kNumLevels + level) + y * kWidth + x;
-    return static_cast<Sint16 *>(mapData.ptr())[s];
+    return static_cast<Sint16 *>(_mapData->getPtr())[s];
 }
 
 
@@ -83,7 +81,7 @@ int SceneMap::setS(int id, int x, int y, int level, int v)
 	}
 
 	s = kWidth * kHeight * (id * kNumLevels + level) + y * kWidth + x;
-    static_cast<Sint16 *>(mapData.ptr())[s] = value;
+    static_cast<Sint16 *>(_mapData->getPtr())[s] = value;
 	return 0;
 }
 
@@ -97,7 +95,7 @@ int SceneMap::setD(int sceneid, int id, int i, int v)
 		return 0;
 	}
 	s = kNumEvents * kNumEventArgs * sceneid + id * kNumEventArgs + i;
-    static_cast<Sint16 *>(eventData.ptr())[s] = v;
+    static_cast<Sint16 *>(_eventData->getPtr())[s] = v;
 	return 0;
 }
 
@@ -111,12 +109,12 @@ int SceneMap::getD(int sceneid, int id, int i)
 		return 0;
 	}
 
-    Sint16 * const &p = static_cast<Sint16 *>(eventData.ptr());
+    Sint16 * const &p = static_cast<Sint16 *>(_eventData->getPtr());
 
 	s = kNumEvents * kNumEventArgs * sceneid + id * kNumEventArgs + i;
 
-    //return reinterpret_cast<Sint16 *>(eventData.ptr())[s];
-    //return static_cast<Sint16 *>(eventData.ptr())[s];
+    //return reinterpret_cast<Sint16 *>(_eventData->getPtr())[s];
+    //return static_cast<Sint16 *>(_eventData->getPtr())[s];
     return p[s];
 }
 
@@ -240,22 +238,18 @@ int BattleMap::load(const char *idxFilename, const char *grpFilename, int mapid)
 
 	int p;
 
-    RWops file;
-
 	if (pWar == NULL)
 		pWar = (Sint16 *) Util_malloc(kWidth * kHeight * kNumLevels * 2);
 
 	if (mapid == 0) {			//第0个地图，从0开始读
 		p = 0;
 	} else {
-        file.fromFile(idxFilename, "r");
+        RWops file(idxFilename, "r");
         file.seek(4 * (mapid - 1), RW_SEEK_SET);
         file.read(&p, 4, 1);
-        file.close();
 	};
 
-
-    file.fromFile(grpFilename, "r");
+    RWops file(grpFilename, "r");
     file.seek(p, RW_SEEK_SET);
     file.read(pWar, 2, kWidth * kHeight * 2);
 
@@ -483,12 +477,17 @@ size_t WorldMap::coord2Index(int x, int y)
 
 int WorldMap::unload()
 {
-    earthLayerData.destroy();
-	surfaceLayerData.destroy();
-	buildingLayerData.destroy();
-	buildxLayerData.destroy();
-	buildyLayerData.destroy();
-	return 0;
+    //_earthLayerData.destroy();
+	//_surfaceLayerData.destroy();
+	//_buildingLayerData.destroy();
+	//_buildxLayerData.destroy();
+	//_buildyLayerData.destroy();
+    _earthLayerData.reset(NULL);
+    _surfaceLayerData.reset(NULL);
+    _buildingLayerData.reset(NULL);
+    _buildxLayerData.reset(NULL);
+    _buildyLayerData.reset(NULL);
+    return 0;
 }
 
 
@@ -496,16 +495,28 @@ int WorldMap::load(const char *earthname, const char *surfacename, const char *b
         const char *buildxname, const char *buildyname)
 {
     //unload();
+    if (_earthLayerData.get() && _earthLayerData->getPtr()) {
+        DLOG("_earthLayerData already loaded.");
+        return 1;
+    }
+    _earthLayerData.reset(new MemoryBlock(earthname));
+    _surfaceLayerData.reset(new MemoryBlock(surfacename));
+    _buildingLayerData.reset(new MemoryBlock(buildingname));
+    _buildxLayerData.reset(new MemoryBlock(buildxname));
+    _buildyLayerData.reset(new MemoryBlock(buildyname));
+
+
     
-    if (earthLayerData.ptr() != NULL) {
-        DLOG("earthLayerData already loaded.");
+#if 0
+    if (_earthLayerData->getPtr() != NULL) {
+        DLOG("_earthLayerData already loaded.");
     }
 
-    if (earthLayerData.create(earthname) ||
-            surfaceLayerData.create(surfacename) ||
-            buildingLayerData.create(buildingname) ||
-            buildxLayerData.create(buildxname) ||
-            buildyLayerData.create(buildyname))
+    if (_earthLayerData.create(earthname) ||
+            _surfaceLayerData.create(surfacename) ||
+            _buildingLayerData.create(buildingname) ||
+            _buildxLayerData.create(buildxname) ||
+            _buildyLayerData.create(buildyname))
         goto out;
     return 0;
 
@@ -513,6 +524,7 @@ out:
     Log("Error loading MMap.");
     unload();
     return 1;
+#endif
 }
 
 
@@ -525,20 +537,20 @@ int WorldMap::get(int x, int y, BuildingType flag)
 
 	switch (flag) {
 	case kLayerEarth:
-		v = static_cast<Sint16 *>(earthLayerData.ptr())[s];
+		v = static_cast<Sint16 *>(_earthLayerData->getPtr())[s];
 		break;
 
 	case kLayerSurface:
-		v = static_cast<Sint16 *>(surfaceLayerData.ptr())[s];
+		v = static_cast<Sint16 *>(_surfaceLayerData->getPtr())[s];
 		break;
 	case kLayerBuilding:
-		v = static_cast<Sint16 *>(buildingLayerData.ptr())[s];
+		v = static_cast<Sint16 *>(_buildingLayerData->getPtr())[s];
 		break;
 	case kLayerBuildx:
-		v = static_cast<Sint16 *>(buildxLayerData.ptr())[s];
+		v = static_cast<Sint16 *>(_buildxLayerData->getPtr())[s];
 		break;
 	case kLayerBuildy:
-		v = static_cast<Sint16 *>(buildyLayerData.ptr())[s];
+		v = static_cast<Sint16 *>(_buildyLayerData->getPtr())[s];
 		break;
 	}
 	return v;
@@ -553,18 +565,18 @@ int WorldMap::set(short x, short y, BuildingType flag, short v)
 
 	switch (flag) {
 	case kLayerEarth:
-        static_cast<Sint16 *>(earthLayerData.ptr())[s] = v;
+        static_cast<Sint16 *>(_earthLayerData->getPtr())[s] = v;
 		break;
-	case kLayerSurface: static_cast<Sint16 *>(surfaceLayerData.ptr())[s] = v;
+	case kLayerSurface: static_cast<Sint16 *>(_surfaceLayerData->getPtr())[s] = v;
 		break;
 	case kLayerBuilding:
-        static_cast<Sint16 *>(buildingLayerData.ptr())[s] = v;
+        static_cast<Sint16 *>(_buildingLayerData->getPtr())[s] = v;
 		break;
 	case kLayerBuildx:
-        static_cast<Sint16 *>(buildxLayerData.ptr())[s] = v;
+        static_cast<Sint16 *>(_buildxLayerData->getPtr())[s] = v;
 		break;
 	case kLayerBuildy:
-        static_cast<Sint16 *>(buildyLayerData.ptr())[s] = v;
+        static_cast<Sint16 *>(_buildyLayerData->getPtr())[s] = v;
 		break;
 	}
 	return 0;
@@ -851,7 +863,7 @@ int JY_LoadMMap(const char *earthname, const char *surfacename, const char *buil
 
 
 // 取主地图数据 
-// flag  0 earthLayerData, 1 surfaceLayerData, 2 buildings, 3 buildxLayerData, 4 buildyLayerData
+// flag  0 _earthLayerData, 1 _surfaceLayerData, 2 buildings, 3 _buildxLayerData, 4 _buildyLayerData
 int JY_GetMMap(int x, int y, BuildingType flag)
 {
     return theWorldMap.get(x, y, flag);
@@ -859,7 +871,7 @@ int JY_GetMMap(int x, int y, BuildingType flag)
 
 
 // 存主地图数据 
-// flag  0 earthLayerData, 1 surfaceLayerData, 2 buildings, 3 buildxLayerData, 4 buildyLayerData
+// flag  0 _earthLayerData, 1 _surfaceLayerData, 2 buildings, 3 _buildxLayerData, 4 _buildyLayerData
 int JY_SetMMap(short x, short y, BuildingType flag, short v)
 {
     return theWorldMap.set(x, y, flag, v);

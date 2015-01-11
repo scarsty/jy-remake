@@ -2,211 +2,188 @@
 
 
 #include "sdlxx.h"
+#include "util.h"
+
 
 //////////////////////////////////////////////////////////////////////////////////////////
-// RWops
+// class RWops
 //////////////////////////////////////////////////////////////////////////////////////////
 
-int RWops::fromFile(const char *file, const char *mode)
+RWops::RWops(const char *filename, const char *mode)
 {
-    m_rwops = SDL_RWFromFile(file, mode);
-    return m_rwops? 0 : 1;
-}
-
-int RWops::fromConstMem(const void *mem, int size)
-{
-    m_rwops = SDL_RWFromConstMem(mem, size);
-    return m_rwops? 0 : 1;
-}
-
-int RWops::fromMem(void *mem, int size)
-{
-    m_rwops = SDL_RWFromMem(mem, size);
-    return m_rwops? 0 : 1;
-}
-
-int RWops::fromFp(FILE *fp, bool autoClose)
-{
-    m_rwops = SDL_RWFromFP(fp, autoClose? SDL_TRUE : SDL_FALSE);
-    return m_rwops? 0 : 1;
-}
-
-
-void RWops::close()
-{
-    if (m_rwops) {
-        SDL_RWclose(m_rwops);
-        m_rwops = 0;
+    _rw = SDL_RWFromFile(filename, mode);
+    if (!_rw) {
+        throw HardwareException("SDL_RWFromFile() failed.");
     }
+}
+
+RWops::RWops(const void *mem, int size)
+{
+    _rw = SDL_RWFromConstMem(mem, size);
+    if (!_rw) {
+        throw HardwareException("SDL_RWFromFile() failed.");
+    }
+}
+
+RWops::RWops(void *mem, int size)
+{
+    _rw = SDL_RWFromMem(mem, size);
+    if (!_rw) {
+        throw HardwareException("SDL_RWFromFile() failed.");
+    }
+}
+
+
+RWops::RWops(FILE *fp, bool autoClose)
+{
+    _rw = SDL_RWFromFP(fp, autoClose? SDL_TRUE : SDL_FALSE);
+    if (!_rw) {
+        throw HardwareException("SDL_RWFromFile() failed.");
+    }
+}
+
+
+RWops::~RWops() throw()
+{
+    SDL_RWclose(_rw);
 }
 
 size_t RWops::read(void *buf, size_t size, size_t maxnum)
 {
-    return SDL_RWread(m_rwops, buf, size, maxnum);
+    return SDL_RWread(_rw, buf, size, maxnum);
 }
 
 size_t RWops::write(void *buf, size_t size, size_t num)
 {
-    return SDL_RWwrite(m_rwops, buf, size, num);
+    return SDL_RWwrite(_rw, buf, size, num);
 }
 
 Sint64 RWops::seek(Sint64 offset, int whence)
 {
-    return SDL_RWseek(m_rwops, offset, whence);
+    return SDL_RWseek(_rw, offset, whence);
 }
 
 Sint64 RWops::tell()
 {
-    return SDL_RWtell(m_rwops);
+    return SDL_RWtell(_rw);
 }
 
 Sint64 RWops::getLength() const
 {
     Sint64 length = 0;
     Sint64 pos = 0;
-    pos  = SDL_RWtell(m_rwops);
-    SDL_RWseek(m_rwops, 0, RW_SEEK_END);
-    length = SDL_RWtell(m_rwops);
-    SDL_RWseek(m_rwops, pos, RW_SEEK_SET);
+    pos  = SDL_RWtell(_rw);
+    SDL_RWseek(_rw, 0, RW_SEEK_END);
+    length = SDL_RWtell(_rw);
+    SDL_RWseek(_rw, pos, RW_SEEK_SET);
     return length;
 }
 
 
 //////////////////////////////////////////////////////////////////////////////////////////
-// Window
+// class Window
 //////////////////////////////////////////////////////////////////////////////////////////
 
-int Window::create(const char *title, int x, int y, int w, int h, Uint32 flags)
+Window::Window(const char *title, int x, int y, int w, int h, Uint32 flags)
 {
-    destroy();
-    m_window = SDL_CreateWindow(title, x, y, w, h, flags);
-    return m_window? 0 : 1;
-}
-
-void Window::destroy()
-{
-    if (m_window) {
-        SDL_DestroyWindow(m_window);
-        m_window = 0;
+    _window = SDL_CreateWindow(title, x, y, w, h, flags);
+    if (!_window) {
+        throw HardwareException("SDL_CreateWindow() failed.");
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////
-// Renderer
-//////////////////////////////////////////////////////////////////////////////////////////
-
-int Renderer::create(SDL_Window *win, int index, Uint32 flags)
+Window::~Window() throw()
 {
-    destroy();
-    m_renderer = SDL_CreateRenderer(win, index, flags);
-    return m_renderer? 0 : 1;
+    SDL_DestroyWindow(_window);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////
+// class Renderer
+//////////////////////////////////////////////////////////////////////////////////////////
 
-void Renderer::destroy()
+Renderer::Renderer(SDL_Window *window, int index, Uint32 flags)
 {
-    if (m_renderer) {
-        SDL_DestroyRenderer(m_renderer);
-        m_renderer = 0;
+    _renderer = SDL_CreateRenderer(window, index, flags);
+    if (!_renderer) {
+        DLOG("error :%s", SDL_GetError());
+        throw HardwareException("SDL_CreateRenderer() failed.");
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////
-// Surface
-//////////////////////////////////////////////////////////////////////////////////////////
-
-void Surface::destroy()
+Renderer::~Renderer() throw()
 {
-    if (m_surface) {
-        SDL_FreeSurface(m_surface);
-        m_surface = 0;
-    }
+    SDL_DestroyRenderer(_renderer);
 }
 
-int Surface::create(Uint32 flags, int w, int h, int depth, 
+//////////////////////////////////////////////////////////////////////////////////////////
+// class Surface
+//////////////////////////////////////////////////////////////////////////////////////////
+
+Surface::Surface(Uint32 flags, int w, int h, int depth,
         Uint32 Rmask, Uint32 Gmask, Uint32 Bmask, Uint32 Amask)
 {
-    destroy();
-    m_surface = SDL_CreateRGBSurface(flags, w, h, depth, Rmask, Gmask, Bmask, Amask);
-    return m_surface? 0 : 1;
+    _surface = SDL_CreateRGBSurface(flags, w, h, depth, Rmask, Gmask, Bmask, Amask);
+    if (!_surface) {
+        throw HardwareException("SDL_CreateRGBSurface() failed.");
+    }
 }
 
-int Surface::loadBmp(const char *filename)
+Surface::Surface(const char *filename)
 {
-    destroy();
-    m_surface = SDL_LoadBMP(filename);
-    return m_surface? 0 : 1;
+    _surface = SDL_LoadBMP(filename);
+    if (!_surface) {
+        throw HardwareException("SDL_LoadBMP() failed.");
+    }
+}
+
+Surface::Surface(const Surface &copy)
+{
+    _surface = SDL_ConvertSurface(copy._surface, copy._surface->format, 
+            copy._surface->flags);
+    if (!_surface) {
+        throw HardwareException("SDL_ConvertSurface() failed.");
+    }
+}
+
+Surface::~Surface() throw()
+{
+    SDL_FreeSurface(_surface);
 }
 
 int Surface::setColorKey(Uint8 r, Uint8 g, Uint8 b)
 {
-    Uint32 key = SDL_MapRGB(m_surface->format, r, g, b);
-    SDL_SetColorKey(m_surface, SDL_TRUE, key);
+    Uint32 key = SDL_MapRGB(_surface->format, r, g, b);
+    SDL_SetColorKey(_surface, SDL_TRUE, key);
 }
-
-int Surface::createFrom(void *ptr, int w, int h, int depth, int pitch, Uint32 rmask,
-        Uint32 gmask, Uint32 bmask, Uint32 amask)
-{
-    m_surface = SDL_CreateRGBSurfaceFrom(ptr, w, h, depth, pitch, rmask, gmask, bmask, amask);
-    return m_surface? 0 : 1;
-}
-
-#if 0
-Surface::Surface(const Surface &copy) throw(HardwareException)
-{
-    m_surface = SDL_ConvertSurface(copy.m_surface, copy.m_surface->format, 
-            copy.m_surface->flags);
-    if (!m_surface)
-        throw HardwareException("SDL_ConvertSurface() failed.");
-}
-#endif
-
-Surface::Surface(SDL_Surface *obj)
-{
-    m_surface = obj;
-}
-
-#if 0
-Surface::pointer Surface::convert(SDL_Surface *src)
-{
-    SDL_Surface *p = SDL_ConvertSurface(m_surface, m_surface->format, m_surface->flags);
-    Surface::pointer ret(new Surface(p));
-    return ret;
-}
-#endif
 
 //////////////////////////////////////////////////////////////////////////////////////////
-// Texture
+// class Texture
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void Texture::destroy()
+Texture::Texture(SDL_Renderer *renderer, Uint32 format, int access, int w, int h)
 {
-    if (m_texture) {
-        SDL_DestroyTexture(m_texture);
-        m_texture = 0;
+    _texture = SDL_CreateTexture(renderer, format, access, w, h);
+}
+
+Texture::Texture(SDL_Renderer *renderer, const char *filename)
+{
+    Surface surf(filename);
+    _texture = SDL_CreateTextureFromSurface(renderer, surf);
+    if (!_texture) {
+        throw HardwareException("SDL_CreateTextureFromSurface() failed.");
     }
 }
 
-int Texture::create(SDL_Renderer *renderer, Uint32 format, int access, int w, int h)
+Texture::Texture(SDL_Renderer *renderer, Surface& surf)
 {
-    destroy();
-    m_texture = SDL_CreateTexture(renderer, format, access, w, h);
-    return m_texture? 0 : 1;
+    _texture = SDL_CreateTextureFromSurface(renderer, surf);
+    if (!_texture) {
+        throw HardwareException("SDL_CreateTextureFromSurface() failed.");
+    }
 }
 
-int Texture::loadBmp(SDL_Renderer *renderer, const char *filename)
+Texture::~Texture() throw()
 {
-    destroy();
-    Surface s;
-    s.loadBmp(filename);
-    m_texture = SDL_CreateTextureFromSurface(renderer, s);
-    return m_texture? 0 : 1;
-}
-
-int Texture::fromSurface(SDL_Renderer *renderer, SDL_Surface *surface)
-{
-    destroy();
-    m_texture = SDL_CreateTextureFromSurface(renderer, surface);
-    return m_texture? 0 : 1;
+    SDL_DestroyTexture(_texture);
 }
 

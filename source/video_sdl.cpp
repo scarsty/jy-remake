@@ -1,9 +1,10 @@
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// SDL 1.2 接口
-////////////////////////////////////////////////////////////////////////////////////////////////////
+/*
+==========================================================================================
+    video_sdl.cpp - Video subsystem implementation uses SDL 1.2
+==========================================================================================
+*/
 
 #include <SDL.h>
-#include <SDL_ttf.h>
 #include <stdlib.h>
 #include "video.h"
 #include "util.h"
@@ -11,45 +12,34 @@
 #include "image.h"
 #include "charset.h"
 
-#define VIDEO_WIDTH  	640
-#define VIDEO_HEIGHT 	400
-#define MAX_RECTS  		20
-#define MAX_FONTS 		10		//定义同时打开的字体个数
+static const int kMaxRects = 20;
 
-typedef struct SUseFont
-{								// 定义当前使用的字体结构
-	int size;					//字号，单位像素
-	char *name;					//字体文件名
-	TTF_Font *font;				//打开的字体
-} TUseFont;
-
-// 显示TTF 字符串
-// 为快速显示，程序将保存已经打开的相应字号的字体结构。这样做可以加快程序速度
-// 为简化代码，没有用链表，而是采用数组来保存打开的字体。
-// 用先进先出的方法，循环关闭已经打开的字体。
-// 考虑到一般打开的字体不多，比如640*480模式实际上只用了16*24*32三种字体。
-// 设置数组为10已经足够。
-
-static TUseFont all_fonts[MAX_FONTS];	//保存已打开的字体
-static int current_font = 0;
-// screen width and height set by config.lua
 int g_ScreenW;
 int g_ScreenH;
 SDL_Surface *g_screen;
-// 原版《金庸群侠传》的分辨率为320x200。
 SDL_Surface *g_fake_screen;
 static int current_rect = 0;
-static SDL_Rect clip_rects[MAX_RECTS];	// 当前设置的剪裁矩形
-
-
-
+static SDL_Rect clip_rects[kMaxRects];	// 当前设置的剪裁矩形
 // “金庸群侠传”的UTF-8编码
 static const char *jy_window_title = "\xe9\x87\x91\xe5\xba\xb8\xe7\xbe\xa4\xe4\xbe\xa0\xe4\xbc\xa0";
 static const char *jy_iconic_title = "\xe9\x87\x91\xe5\xba\xb8\xe7\xbe\xa4\xe4\xbe\xa0\xe4\xbc\xa0";
-
 #include "jylogo.c"
 // 设置窗口图标
 static SDL_Surface *the_logo = NULL;
+
+class SDLVideo : public Video {
+public:
+    SDLVideo(int ww, int wh, int sw, int sh);
+    ~SDLVideo();
+};
+
+SDLVideo::SDLVideo(int ww, int wh, int sw, int sh)
+{
+}
+
+
+
+
 #if 0
 static void SetSDLWindowIcon(void)
 {
@@ -495,7 +485,7 @@ int JY_SetClip(int x1, int y1, int x2, int y2)
 
 		SDL_SetClipRect(g_fake_screen, &clip_rects[current_rect]);
 		current_rect = current_rect + 1;
-		if (current_rect >= MAX_RECTS) {
+		if (current_rect >= kMaxRects) {
 			current_rect = 0;
 		}
 	}

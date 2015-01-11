@@ -1,5 +1,5 @@
-#ifndef JYLUA_IMAGE_H
-#define JYLUA_IMAGE_H
+#ifndef JY_IMAGE_H
+#define JY_IMAGE_H
 
 #include <SDL_video.h>
 #include <SDL_stdinc.h>
@@ -23,7 +23,6 @@ int 			JY_GetPicSize(int fileid, int picid, int *w,int *h,int *xoff,int *yoff);
 int 			JY_DrawImage(const char *filename,int x,int y);
 int 			JY_SetClip(int x1,int y1,int x2,int y2);
 int 			BlitSurface(SDL_Surface* surface, int x, int y ,int flag, int value);
-int             Init_Cache();
 
-#endif // JYLUA_IMAGE_H
+#endif // JY_IMAGE_H
 

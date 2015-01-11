@@ -11,12 +11,12 @@ static const Uint32 COLOR_KEY = 0x70620;
 // Video interface
 class Video {
 public:
+    Video() {}
     virtual ~Video() {}
     static Video * getInstance();
     virtual Uint32 convertColor(Uint32 color) = 0;
     virtual Size getWindowSize() = 0;
     virtual Size getScreenSize() = 0;
-    virtual int create(int ww, int wh, int sw, int sh) = 0;
     virtual void fillRect(int x1, int y1, int x2, int y2, Uint32 color) = 0;
     virtual void drawRect(int x1, int y1, int x2, int y2, Uint32 color) = 0;
     virtual void darkenRect(int x1, int y1, int x2, int y2, int brightness) = 0;
@@ -28,7 +28,7 @@ public:
     virtual void blitSurface(SDL_Surface *dest, int x, int y, int flag, int value) = 0;
     virtual SDL_Surface *convertSurface(SDL_Surface *surface) = 0;
 private:
-    static Video * instance;
+    static Video* _instance;
 };
 
 

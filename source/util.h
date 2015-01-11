@@ -12,8 +12,9 @@
 // Log with function name, file name and line number.
 // Debug log
 #ifndef NDEBUG
-#   define DLOG(...) Log("Function: %s, File: %s, Line: %d", \
-        __func__, __FILE__, __LINE__); Log(__VA_ARGS__)
+#define LOCATION() Log(va("File: %s, Line: %d", __FILE__, __LINE__))
+#define DLOG(...) Log("Function: %s, File: %s, Line: %d", \
+    __func__, __FILE__, __LINE__); Log(__VA_ARGS__)
 #else
 #   define DLOG(...) ((void)0)
 #endif /* NDEBUG */
@@ -36,24 +37,21 @@ int         clamp(int x, int min, int max);
 
 class MemoryBlock {
 public:
-    MemoryBlock() : m_ptr(0), m_size(0) {}
-    ~MemoryBlock() { destroy(); }
-    operator void*() { return m_ptr; }
-    void *ptr() { return m_ptr; }
-    size_t getSize() { return m_size; }
-    size_t size() const { return m_size; }
-    //int fromFile(const char *filename);
+    MemoryBlock() : _ptr(0), _size(0) {}
+    MemoryBlock(const char *filename);
+    MemoryBlock(size_t size);
+    ~MemoryBlock();
+    operator void*() { return _ptr; }
+    size_t getSize() { return _size; }
+    void *getPtr() { return _ptr; }
     int readFile(const char *filename);
-    int create(const char *filename);
-    int create(size_t size);
-    void destroy();
-
     int alloc(size_t size);
+    void release();
     int read(RWops &rw, size_t size);
 
 private:
-    void *m_ptr;
-    size_t m_size;
+    void *_ptr;
+    size_t _size;
     DISALLOW_COPY_AND_ASSIGN(MemoryBlock);
 };
 

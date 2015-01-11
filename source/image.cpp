@@ -1,7 +1,8 @@
-#include <SDL_video.h>
 #include <SDL_endian.h>
+#include <list>
 #include <stdio.h>
 #include <stdlib.h>
+#include <vector>
 #include "image.h"
 #include "video.h"
 #include "lodepng.h"
@@ -87,7 +88,7 @@ static const Uint8 kColormapData[] = {
 };
 
 
-static const Uint32 *colormap = (Uint32 *)kColormapData;
+static const Uint32 *colormap = reinterpret_cast<const Uint32 *>(kColormapData);
 
 
 #if 0
@@ -109,10 +110,10 @@ Surface::pointer Image_LoadPNG2(const char *filename)
     unsigned int width=0, height=0;
     MemoryBlock mem;
     mem.create(filename);
-    unsigned error = lodepng_decode32(&png, &width, &height, (Uint8*)mem.ptr(), mem.getSize());
+    unsigned error = lodepng_decode32(&png, &width, &height, (Uint8*)mem.getPtr(), mem.getSize());
     if (error) {
         Log("LoadPNG failed.");
-        //return Surface::shared_ptr();
+        //return Surface::getPtr();
         return Surface::pointer();
     }
     //Surface::shared_ptr surf(new Surface());
@@ -129,7 +130,6 @@ SDL_Surface *Image_LoadPNG(const char *filename)
 	unsigned width = 0, height = 0;
 	Uint8 *png = NULL;
 	unsigned error = 0;
-    MemoryBlock mem;
 	unsigned rmask, gmask, bmask, amask;
 
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
@@ -143,8 +143,9 @@ SDL_Surface *Image_LoadPNG(const char *filename)
 	bmask = 0x00ff0000;
 	amask = 0xff000000;
 #endif
-    mem.create(filename);
-	error = lodepng_decode32(&png, &width, &height, (Uint8 *)mem.ptr(), mem.size());
+    MemoryBlock mem(filename);
+	error = lodepng_decode32(&png, &width, &height, static_cast<Uint8*>(mem.getPtr()), 
+            mem.getSize());
 	if (error) {
 		DLOG("failed!");
 		return NULL;
@@ -175,7 +176,6 @@ SDL_Surface *Image_LoadJYBMP_Mem(Uint8 *data, int w, int h, int datalen)
 	int x;
 	int solidnum;
 	SDL_Surface *ps1, *ps2;
-    MemoryBlock pixels;
 
 	static bool colormap_loaded = false;
 
@@ -185,8 +185,8 @@ SDL_Surface *Image_LoadJYBMP_Mem(Uint8 *data, int w, int h, int datalen)
 	}
 
 	//pixels = (Uint32 *) Util_malloc(w * h * 4);
-    pixels.create(w * h * 4);
-    Uint32 *ptr = (Uint32 *)pixels.ptr();
+    MemoryBlock pixels(w * h * 4);
+    Uint32 *ptr = static_cast<Uint32*>(pixels.getPtr());
 	for (i = 0; i < w * h; i++)
 		ptr[i] = COLOR_KEY;
 	for (i = 0; i < h; i++) {
@@ -334,6 +334,14 @@ typedef struct SCacheNode
 	struct list_head list;		// 链表结构，linux.h中的list.h中定义
 } TCacheNode;
 
+struct JyPic {
+    SDL_Surface *surface;
+    int xoff;
+    int yoff;
+    int id;
+    int fileId;
+};
+
 //贴图文件链表节点
 typedef struct SPicFileCache
 {
@@ -346,6 +354,14 @@ typedef struct SPicFileCache
 	TCacheNode **pcache;		// 文件中所有的贴图对应的cache节点指针，为空则表示没有。
 } TPicFileCache;
 
+struct JyPicCache {
+    int count;                      // JyPic 个数
+    std::vector<int> indices;       // index
+    std::auto_ptr<MemoryBlock> grp;
+    std::vector<TCacheNode*> caches;
+};
+
+
 #define 				PIC_FILE_NUM 40	//缓存的贴图文件(idx/grp)个数
 static TPicFileCache pic_file[PIC_FILE_NUM];
 LIST_HEAD(cache_head);			//定义cache链表头
@@ -355,7 +371,7 @@ static int g_MAXCacheNum = 1000;	// 最大Cache个数
 static int s_caching_fail_count = 0;
 
 // 初始化Cache数据。游戏开始时调用
-int Init_Cache()
+int Init_Cache(void)
 {
 	int i;
 	for (i = 0; i < PIC_FILE_NUM; i++) {
@@ -409,22 +425,22 @@ int JY_PicInit(void)
 
 // 加载文件信息
 // filename 文件名 
-// id  0 - PIC_FILE_NUM-1
-int JY_PicLoadFile(const char *idxfilename, const char *grpfilename, int id)
+// id  [0, PIC_FILE_NUM - 1]
+
+int JY_PicLoadFile(const char *idxfilename, const char *grpfilename, int fileid)
 {
 	int i;
 	TCacheNode *tmpcache;
-    RWops file;
 
-	// id超出范围
-	if (id < 0 || id >= PIC_FILE_NUM) {
+	// fileid超出范围
+	if (fileid < 0 || fileid >= PIC_FILE_NUM) {
 		return 1;
 	}
 	//释放当前文件占用的空间，并清理cache
-	if (pic_file[id].pcache) {
+	if (pic_file[fileid].pcache) {
 		int i;
-		for (i = 0; i < pic_file[id].num; i++) {	//循环全部贴图，
-			tmpcache = pic_file[id].pcache[i];
+		for (i = 0; i < pic_file[fileid].num; i++) {	//循环全部贴图，
+			tmpcache = pic_file[fileid].pcache[i];
 			// 该贴图有缓存则删除
 			if (tmpcache) {
 				if (tmpcache->s != NULL)
@@ -434,39 +450,36 @@ int JY_PicLoadFile(const char *idxfilename, const char *grpfilename, int id)
 				s_current_cache_num--;
 			}
 		}
-		Util_free(pic_file[id].pcache);
+		Util_free(pic_file[fileid].pcache);
 	}
-	Util_free(pic_file[id].idx);
-	Util_free(pic_file[id].grp);
-//	if (pic_file[id].fp) {
-//		fclose(pic_file[id].fp);
-//		pic_file[id].fp = NULL;
+	Util_free(pic_file[fileid].idx);
+	Util_free(pic_file[fileid].grp);
+//	if (pic_file[fileid].fp) {
+//		fclose(pic_file[fileid].fp);
+//		pic_file[fileid].fp = NULL;
 //	}
 	// 读取idx文件
 
-    file.fromFile(idxfilename, "r");
-	//pic_file[id].num = Util_GetFileLength(idxfilename) / 4;	//idx 贴图个数
-	pic_file[id].num = file.getLength() / 4;
-	pic_file[id].idx = (int *) Util_malloc((pic_file[id].num + 1) * 4);
-	//读取贴图idx文件
-	//rw = SDL_RWFromFile(idxfilename, "r");
-    file.read(&pic_file[id].idx[1], 4, pic_file[id].num);
-    file.close();
+    std::auto_ptr<RWops> rw(new RWops(idxfilename, "r"));
+    //pic_file[fileid].num = Util_GetFileLength(idxfilename) / 4;	//idx 贴图个数
+    pic_file[fileid].num = rw->getLength() / 4;
+    pic_file[fileid].idx = (int *) Util_malloc((pic_file[fileid].num + 1) * 4);
+    //读取贴图idx文件
+    //rw = SDL_RWFromFile(idxfilename, "r");
+    rw->read(&pic_file[fileid].idx[1], 4, pic_file[fileid].num);
+	pic_file[fileid].idx[0] = 0;
 
-	pic_file[id].idx[0] = 0;
 	//读取grp文件
-    file.fromFile(grpfilename, "r");
-	//pic_file[id].filelength = Util_GetFileLength(grpfilename);
-	pic_file[id].filelength = file.getLength();
+    rw.reset(new RWops(grpfilename, "r"));
+    //pic_file[fileid].filelength = Util_GetFileLength(grpfilename);
+    pic_file[fileid].filelength = rw->getLength();
+    pic_file[fileid].grp = (unsigned char *) Util_malloc(pic_file[fileid].filelength);
+    rw->read(pic_file[fileid].grp, 1, pic_file[fileid].filelength);
+    rw.reset(NULL);
 
-	pic_file[id].grp = (unsigned char *) Util_malloc(pic_file[id].filelength);
-
-    file.read(pic_file[id].grp, 1, pic_file[id].filelength);
-    file.close();
-
-	pic_file[id].pcache = (TCacheNode **) Util_malloc(pic_file[id].num * sizeof(TCacheNode *));
-	for (i = 0; i < pic_file[id].num; i++)
-		pic_file[id].pcache[i] = NULL;
+	pic_file[fileid].pcache = (TCacheNode **) Util_malloc(pic_file[fileid].num * sizeof(TCacheNode *));
+	for (i = 0; i < pic_file[fileid].num; i++)
+		pic_file[fileid].pcache[i] = NULL;
 
 	return 0;
 }
@@ -475,8 +488,6 @@ int JY_PicLoadFile(const char *idxfilename, const char *grpfilename, int id)
 // 加载贴图到表面
 static int LoadPic(int fileid, int picid, TCacheNode * cache)
 {
-
-    RWops file;
 	int id1, id2;
 	int datalong;
 	unsigned char *p, *data;
@@ -503,9 +514,7 @@ static int LoadPic(int fileid, int picid, TCacheNode * cache)
 		//读取贴图grp文件，得到原始数据   
 		data = pic_file[fileid].grp + id1;
 		p = NULL;
-
-        file.fromMem(data, datalong);
-
+        RWops file(data, datalong);
 		if (!Image_IsPNG_Mem(data)) {
 			int w, h;
 			w = *(short *) data;
@@ -524,7 +533,6 @@ static int LoadPic(int fileid, int picid, TCacheNode * cache)
 			cache->yoff = tmpsurf->h / 2;
 			cache->s = tmpsurf;
 		}
-        file.close();
 		Util_free(p);
 	} else {
 		cache->s = NULL;
