@@ -32,7 +32,6 @@ private:
 };
 
 
-
 int		Video_GetWindowWidth(void);
 int		Video_GetWindowHeight(void);
 int 	Video_Init(int width, int height);

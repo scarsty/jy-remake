@@ -97,7 +97,8 @@ public:
     Sint16 readLe16() { return SDL_ReadLE16(_rw); }
     Sint32 readLe32() { return SDL_ReadLE32(_rw); }
     Sint64 readLe64() { return SDL_ReadLE64(_rw); }
-    operator SDL_RWops*() { return _rw; }
+    operator SDL_RWops*() const { return _rw; }
+    SDL_RWops *get() const { return _rw; }
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -110,7 +111,8 @@ private:
 public:
     Window(const char *title, int x, int y, int w, int h, Uint32 flags);
     ~Window() throw();
-    operator SDL_Window*() { return _window; }
+    operator SDL_Window*() const { return _window; }
+    SDL_Window *get() const { return _window; }
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -123,8 +125,8 @@ private:
 public:
     Renderer(SDL_Window *window, int index, Uint32 flags);
     ~Renderer() throw();
-    operator SDL_Renderer*() { return _renderer; }
-
+    operator SDL_Renderer*() const { return _renderer; }
+    SDL_Renderer *get() const { return _renderer; }
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -146,7 +148,8 @@ public:
     int create(Uint32 flags, int w, int h, int depth, Uint32 Rmask, Uint32 Gmask, Uint32 Bmask, Uint32 Amask);
     int createFrom(void *ptr, int w, int h, int depth, int pitch, Uint32 rmask, Uint32 gmak, Uint32 bmask, Uint32 amask);
 #endif
-    operator SDL_Surface*() { return _surface; }
+    operator SDL_Surface*() const { return _surface; }
+    SDL_Surface *get() const { return _surface; }
     int setColorKey(Uint8 r, Uint8 g, Uint8 b);
     //pointer convert(SDL_Surface *surf);
     Size getSize() const { return Size(_surface->w, _surface->h); }
@@ -166,6 +169,7 @@ public:
     Texture(SDL_Renderer *renderer, Surface& surf);
     ~Texture() throw();
     operator SDL_Texture*() const { return _texture; }
+    SDL_Texture *get() const { return _texture; }
 };
 
 #endif // JY_SDLXX_H
