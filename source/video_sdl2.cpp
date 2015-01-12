@@ -1,3 +1,9 @@
+/*
+==========================================================================================
+video_sdl2.cpp - Video模块的SDL2实现
+==========================================================================================
+*/
+
 #include <SDL.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,18 +22,53 @@ static SDL_Rect clip_rects[kMaxRects];	// 当前设置的剪裁矩形
 
 
 // “金庸群侠传”的UTF-8编码
-static const char *jy_window_title = "\xe9\x87\x91\xe5\xba\xb8\xe7\xbe\xa4\xe4\xbe\xa0\xe4\xbc\xa0";
-static const char *jy_iconic_title = "\xe9\x87\x91\xe5\xba\xb8\xe7\xbe\xa4\xe4\xbe\xa0\xe4\xbc\xa0";
+static const char *jy_window_title = 
+    "\xe9\x87\x91\xe5\xba\xb8\xe7\xbe\xa4\xe4\xbe\xa0\xe4\xbc\xa0";
+static const char *jy_iconic_title = 
+    "\xe9\x87\x91\xe5\xba\xb8\xe7\xbe\xa4\xe4\xbe\xa0\xe4\xbc\xa0";
 
-// SDL2 implementation
-class SDL2Video : public Video {
+//////////////////////////////////////////////////////////////////////////////////////////
+// Sdl2VideoIniter
+//////////////////////////////////////////////////////////////////////////////////////////
+
+class Sdl2VideoIniter {
 public:
-    SDL2Video();
-    ~SDL2Video();
+    Sdl2VideoIniter();
+    ~Sdl2VideoIniter();
+    bool inited() const;
+};
+
+Sdl2VideoIniter::~Sdl2VideoIniter()
+{
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
+}
+
+Sdl2VideoIniter::Sdl2VideoIniter()
+{
+    if (!inited()) {
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+        if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
+            throw HardwareException("SDL Video Subsystem initilization failed.");
+        }
+    }
+}
+
+bool Sdl2VideoIniter::inited() const
+{
+    return SDL_WasInit(SDL_INIT_VIDEO);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// SDL2 Video Subsystem
+//////////////////////////////////////////////////////////////////////////////////////////
+
+class Sdl2Video : public Video {
+public:
+    Sdl2Video(int ww, int wh, int sw, int sh);
+    ~Sdl2Video();
     virtual Uint32 convertColor(Uint32 color);
     virtual Size getWindowSize();
     virtual Size getScreenSize();
-    virtual int create(int windowW, int windowH, int screenW, int screenH);
     virtual void fillRect(int x1, int y1, int x2, int y2, Uint32 color);
     virtual void drawRect(int x1, int y1, int x2, int y2, Uint32 color);
     virtual void darkenRect(int x1, int y1, int x2, int y2, int brightness);
@@ -39,13 +80,14 @@ public:
     virtual void blitSurface(SDL_Surface *dest, int x, int y, int flag, int value);
     virtual SDL_Surface *convertSurface(SDL_Surface *surface);
 private:
-    Size        m_windowSize;
-    Size        m_screenSize;
-    Surface     m_screenSurface;
-    Texture     m_screenTexture;
-    Renderer    m_renderer;
-    Window      m_window;
-    SDL_Rect    m_destBlitRect;
+    Sdl2VideoIniter _sdl2VideoIniter;
+    Window      _window;
+    Renderer    _renderer;
+    Surface     _screenSurface;
+    Texture     _screenTexure;
+    SDL_Rect    _destBlitRect;
+    Size        _windowSize;
+    Size        _screenSize;
 };
 
 
@@ -73,7 +115,6 @@ int Video_GetWindowHeight(void)
     return Video::getInstance()->getWindowSize().cy;
 }
 
-
 int Video_GetWindowWidth(void)
 {
     return Video::getInstance()->getWindowSize().cx;
@@ -86,7 +127,8 @@ void Video_Quit()
 
 int Video_Init(int w, int h)
 {
-    return Video::getInstance()->create(w, h, 320, 200);
+    Video::getInstance();
+    return 0;
 }
 
 #if 0
@@ -367,47 +409,56 @@ SDL_Surface *Video_GetCanvas(void)
 // class Video
 //////////////////////////////////////////////////////////////////////////////////////////
 
-Video *Video::instance = 0;
+Video *Video::_instance = NULL;
 
 Video *Video::getInstance()
 {
-    if (!instance) {
-        instance = new SDL2Video();
+    if (_instance == NULL) {
+        _instance = new Sdl2Video(800, 500, 320, 200);
     }
-    return instance;
+    return _instance;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
-// class SDL2Video
+// class Sdl2Video
 //////////////////////////////////////////////////////////////////////////////////////////
 
-SDL2Video::SDL2Video()
+Sdl2Video::Sdl2Video(int ww, int wh, int sw, int sh)
+    : _window("Heros of Jinyong", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, ww, wh, 0),
+    _renderer(_window, -1, SDL_RENDERER_ACCELERATED),
+    _screenSurface(0, sw, sh, 32, 0, 0, 0, 0),
+    _screenTexure(_renderer, SDL_PIXELFORMAT_ARGB8888,
+            SDL_TEXTUREACCESS_STATIC, sw, sh)
+{
+    _screenSize = Size(sw, sh);
+    _windowSize = Size(ww, wh);
+    calcDestBlitRect(sw, sh, ww, wh, &_destBlitRect);
+}
+
+
+Sdl2Video::~Sdl2Video()
 {
 }
 
-SDL2Video::~SDL2Video()
+Uint32 Sdl2Video::convertColor(Uint32 color)
 {
-}
-
-Uint32 SDL2Video::convertColor(Uint32 color)
-{
-    SDL_PixelFormat *format = ((SDL_Surface *)m_screenSurface)->format;
+    SDL_PixelFormat *format = ((SDL_Surface *)_screenSurface)->format;
 	return SDL_MapRGB(format, (color >> 16) & 0xff, (color >> 8) & 0xff, color & 0xff);
 }
 
-Size SDL2Video::getScreenSize()
+Size Sdl2Video::getScreenSize()
 {
-    return m_screenSize;
+    return _screenSize;
 }
 
-Size SDL2Video::getWindowSize()
+Size Sdl2Video::getWindowSize()
 {
-    return m_windowSize;
+    return _windowSize;
 }
 
-void SDL2Video::fillRect(int x1, int y1, int x2, int y2, Uint32 color)
+void Sdl2Video::fillRect(int x1, int y1, int x2, int y2, Uint32 color)
 {
-    SDL_Surface *surface = (SDL_Surface *)m_screenSurface;
+    SDL_Surface *surface = (SDL_Surface *)_screenSurface;
 	Uint32 c = convertColor(color);
 	SDL_Rect rect;
 
@@ -423,7 +474,7 @@ void SDL2Video::fillRect(int x1, int y1, int x2, int y2, Uint32 color)
 	}
 }
 
-void SDL2Video::darkenRect(int x1, int y1, int x2, int y2, int brightness)
+void Sdl2Video::darkenRect(int x1, int y1, int x2, int y2, int brightness)
 {
 	SDL_Rect r1, r2;
 
@@ -441,110 +492,73 @@ void SDL2Video::darkenRect(int x1, int y1, int x2, int y2, int brightness)
 	r2 = r1;
 
 
-    Surface surf;
     SDL_PixelFormat *format = getSurface()->format;
-    surf.create(0, r2.w, r2.h, 32, format->Rmask, format->Gmask, format->Bmask, 0);
+    Surface surf(0, r2.w, r2.h, 32,
+            format->Rmask,
+            format->Gmask,
+            format->Bmask,
+            0);
     SDL_SetSurfaceBlendMode(surf, SDL_BLENDMODE_BLEND);
     SDL_FillRect(surf, NULL, 0);
     SDL_SetSurfaceAlphaMod(surf, (Uint8) brightness);
-    SDL_BlitSurface(surf, NULL, m_screenSurface, &r2);
+    SDL_BlitSurface(surf, NULL, _screenSurface, &r2);
 }
 
-
-int SDL2Video::create(int windowWidth, int windowHeight, int screenWidth, int screenHeight)
-{
-	if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
-        Log("cannot init video subsystem");
-        return 1;
-    }
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-    if (m_window.create("Heros of Jin Yong", SDL_WINDOWPOS_CENTERED,
-                SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, 0)) {
-        Log("cannot create window");
-        return 1;
-    }
-    if (m_renderer.create(m_window, -1, SDL_RENDERER_ACCELERATED)) {
-        Log("cannot create m_renderer");
-        return 1;
-    }
-
-    m_screenSize = Size(screenWidth, screenHeight);
-    m_windowSize = Size(windowWidth, windowHeight);
-
-    //calcDestBlitRect(screenWidth, screenHeight, winWidth, winHeight, &m_destBlitRect);
-    calcDestBlitRect(m_screenSize.cx, m_screenSize.cy, m_windowSize.cx, 
-            m_windowSize.cy, &m_destBlitRect);
-    m_screenSurface.create(0, screenWidth, screenHeight, 32, 0, 0, 0, 0);
-    //m_screenTexture.fromSurface(m_renderer, m_screenSurface);
-	m_screenTexture.create(m_renderer, SDL_PIXELFORMAT_ARGB8888, 
-            SDL_TEXTUREACCESS_STATIC, screenWidth, screenHeight);
-    return 0;
-}
-
-
-void SDL2Video::fadeIn(Uint32 ms)
+void Sdl2Video::fadeIn(Uint32 ms)
 {
     int i;
     Uint32 d = ms;
 
-    Texture tex;
-    tex.fromSurface(m_renderer, m_screenSurface);
-
+    Texture tex(_renderer, _screenSurface);
     SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
-
     for (i=0; i<255; i++) {
         Uint8 alpha = i;
-        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 0);
-        SDL_RenderClear(m_renderer);
+        SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 0);
+        SDL_RenderClear(_renderer);
         SDL_SetTextureAlphaMod(tex, alpha);
-        SDL_RenderCopy(m_renderer, tex, NULL, &m_destBlitRect);
-        SDL_RenderPresent(m_renderer);
+        SDL_RenderCopy(_renderer, tex, NULL, &_destBlitRect);
+        SDL_RenderPresent(_renderer);
         SDL_Delay(5);
     }
-    SDL_SetTextureBlendMode(m_screenTexture, SDL_BLENDMODE_NONE);
-    SDL_DestroyTexture(tex);
+    SDL_SetTextureBlendMode(_screenTexure, SDL_BLENDMODE_NONE);
 }
 
-void SDL2Video::fadeOut(Uint32 ms)
+void Sdl2Video::fadeOut(Uint32 ms)
 {
     int i;
     Uint32 d = ms;
 
-    Texture tex;
-    tex.fromSurface(m_renderer, m_screenSurface);
-
+    Texture tex(_renderer, _screenSurface);
     SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
-
     for (i=0; i<255; i++) {
         Uint8 alpha = 255-i;
-        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 0);
-        SDL_RenderClear(m_renderer);
+        SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 0);
+        SDL_RenderClear(_renderer);
         SDL_SetTextureAlphaMod(tex, alpha);
-        SDL_RenderCopy(m_renderer, tex, NULL, &m_destBlitRect);
-        SDL_RenderPresent(m_renderer);
+        SDL_RenderCopy(_renderer, tex, NULL, &_destBlitRect);
+        SDL_RenderPresent(_renderer);
         SDL_Delay(5);
     }
-    SDL_SetTextureBlendMode(m_screenTexture, SDL_BLENDMODE_NONE);
-    SDL_DestroyTexture(tex);
+    SDL_SetTextureBlendMode(_screenTexure, SDL_BLENDMODE_NONE);
 }
 
-void SDL2Video::drawText(const char *str, int x, int y, Uint32 color)
+void Sdl2Video::drawText(const char *str, int x, int y, Uint32 color)
 {
     int width = 0;
     int height = 0;
     Font_GetSize(str, &width, &height);
     Font_SetColor(color);
-    Font_DrawText(m_screenSurface, str, x, y);
+    Font_DrawText(_screenSurface, str, x, y);
 }
 
-void SDL2Video::drawRect(int x1, int y1, int x2, int y2, Uint32 color)
+void Sdl2Video::drawRect(int x1, int y1, int x2, int y2, Uint32 color)
 {
 	Uint8 *p;
 	int lpitch = 0;
 	Uint32 c;
 	SDL_Rect rect1, rect2;
 	int xmin, xmax, ymin, ymax;
-    SDL_Surface *surface = (SDL_Surface *)m_screenSurface;
+    SDL_Surface *surface = (SDL_Surface *)_screenSurface;
 
 	if (x1 < x2) {
 		xmin = x1;
@@ -588,28 +602,28 @@ void SDL2Video::drawRect(int x1, int y1, int x2, int y2, Uint32 color)
 	SDL_UnlockSurface(surface);
 }
 
-void SDL2Video::updateScreen()
+void Sdl2Video::updateScreen()
 {
-    SDL_Surface *surface = (SDL_Surface *)m_screenSurface;
-    SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_NONE);
-    SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 0);
-    SDL_RenderFillRect(m_renderer, NULL);
-	SDL_UpdateTexture(m_screenTexture, NULL, surface->pixels, surface->pitch);
-	SDL_RenderCopy(m_renderer, m_screenTexture, NULL, &m_destBlitRect);
-	SDL_RenderPresent(m_renderer);
+    SDL_Surface *surface = (SDL_Surface *)_screenSurface;
+    SDL_SetRenderDrawBlendMode(_renderer, SDL_BLENDMODE_NONE);
+    SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 0);
+    SDL_RenderFillRect(_renderer, NULL);
+	SDL_UpdateTexture(_screenTexure, NULL, surface->pixels, surface->pitch);
+	SDL_RenderCopy(_renderer, _screenTexure, NULL, &_destBlitRect);
+	SDL_RenderPresent(_renderer);
 }
 
-SDL_Surface *SDL2Video::getSurface()
+SDL_Surface *Sdl2Video::getSurface()
 {
-    return static_cast<SDL_Surface *>(m_screenSurface);
+    return static_cast<SDL_Surface *>(_screenSurface);
 }
 
-SDL_Surface *SDL2Video::convertSurface(SDL_Surface *surf)
+SDL_Surface *Sdl2Video::convertSurface(SDL_Surface *surf)
 {
 	return SDL_ConvertSurface(surf, this->getSurface()->format, 0);
 }
 
-void SDL2Video::blitSurface(SDL_Surface *lps, int x, int y, int flag, int value)
+void Sdl2Video::blitSurface(SDL_Surface *lps, int x, int y, int flag, int value)
 {
 	SDL_Surface *tmps;
 	SDL_Rect rect;

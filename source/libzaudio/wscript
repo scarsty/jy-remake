@@ -34,7 +34,7 @@ def build(ctx):
             cwd + "/libfluidsynth/include",
     ]
     library_paths = [
-            cwd + "../../sdk/lib",
+            cwd + "/../../sdk/lib",
     ]
     defines = [
             "USE_FLUIDSYNTH_MIDI",

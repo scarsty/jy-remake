@@ -1,7 +1,7 @@
-
 /*
 ================================================================================
-  Functions exported to lua.
+script.cpp - 导出给Lua的C函数。
+使用Lua 5.1.5做为脚本语言。
 ================================================================================
 */
 // 与lua库的交互函数,使用lua5.1.5版
@@ -39,15 +39,13 @@ extern "C" {
 static int HAPI_GetDialogString(lua_State *pL)
 {
     char buf[1024];
-    RWops file;
     Uint32 offset = 0;
 
-    file.fromFile("data/oldtalk.grp", "r");
+    RWops file("data/oldtalk.grp", "r");
     offset = lua_tonumber(pL, 1);
     file.seek(offset, RW_SEEK_SET);
     file.read(buf, 1, sizeof(buf));
     *strstr(buf, "\xD\xA") = 0;
-    file.close();
     lua_pushstring(pL, buf);
     return 1;
 }
@@ -204,12 +202,11 @@ static int HAPI_CharSet(lua_State * pL)
 	size_t length;
 	const char *src = lua_tostring(pL, 1);
 	int flag = (int) lua_tonumber(pL, 2);
-    MemoryBlock dest;
-
 	length = strlen(src);
-    dest.create(length + 2);
-	JY_CharSet(src, (char *)dest.ptr(), flag);
-	lua_pushstring(pL, (char *)dest.ptr());
+    MemoryBlock dest(length + 2);
+
+	JY_CharSet(src, (char *)dest.getPtr(), flag);
+	lua_pushstring(pL, (char *)dest.getPtr());
 
 	return 1;
 }
@@ -552,32 +549,28 @@ static int Byte_create(lua_State * pL)
 
 static int Byte_loadfile(lua_State * pL)
 {
-    RWops file;
 	Uint8 *pData = (Uint8 *) lua_touserdata(pL, 1);
 	const char *filename = lua_tostring(pL, 2);
 	int start = (int) lua_tonumber(pL, 3);
 	int length = (int) lua_tonumber(pL, 4);
 
-    file.fromFile(filename, "r");
+    RWops file(filename, "r");
     file.seek(start, RW_SEEK_SET);
     file.read(pData, 1, length);
-    file.close();
 
 	return 0;
 }
 
 static int Byte_savefile(lua_State * pL)
 {
-    RWops file;
 	char *pData = (char *) lua_touserdata(pL, 1);
 	const char *filename = lua_tostring(pL, 2);
 	int start = (int) lua_tonumber(pL, 3);
 	int length = (int) lua_tonumber(pL, 4);
 
-    file.fromFile(filename, "r");
+    RWops file(filename, "r");
     file.seek(start, RW_SEEK_SET);
     file.write(pData, 1, length);
-    file.close();
 	return 0;
 }
 
@@ -645,10 +638,8 @@ static int Byte_getstr(lua_State * pL)
 	int start = (int) lua_tonumber(pL, 2);
 	int length = (int) lua_tonumber(pL, 3);
 	//char *s = (char *) Util_malloc(length + 1);
-    MemoryBlock smb;
-    smb.create(length + 1);
-    char *s = (char *) smb.ptr();
-
+    MemoryBlock smb(length + 1);
+    char *s = (char *) smb.getPtr();
 	int i;
 	for (i = 0; i < length; i++)
 		s[i] = p[start + i];
@@ -852,13 +843,11 @@ int Script_LoadAndRun(const char *filename)
 {
 	lua_State *pL = theLuaState;
 	int ret = 0;
-    MemoryBlock buf;
-
-    buf.create(Util_GetFileLength(filename) + 1);
+    MemoryBlock buf(Util_GetFileLength(filename) + 1);
     buf.readFile(filename);
-    reinterpret_cast<char *>(buf.ptr())[buf.size()] = 0; // add null terminator
+    static_cast<char *>(buf.getPtr())[buf.getSize()] = 0; // add null terminator
 
-	ret = luaL_dostring(pL, reinterpret_cast<char *>(buf.ptr()));
+	ret = luaL_dostring(pL, static_cast<char *>(buf.getPtr()));
 
 	if (ret) {
 		DLOG("Reason: %s", filename, GetErrorString(ret));

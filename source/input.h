@@ -1,9 +1,9 @@
-#ifndef INPUT_H
-#define INPUT_H
+#ifndef JY_INPUT_H
+#define JY_INPUT_H
 
 int		Input_Init(void);
 void	Input_Quit(void);
 int		JY_GetKey(void);
 
-#endif // INPUT_H
+#endif // JY_INPUT_H
 

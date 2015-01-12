@@ -1,3 +1,7 @@
+/**
+ * util.cpp - utility functions make life easier
+ */
+
 #include <SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,8 +54,7 @@ char *va(const char *format, ...)
 // 返回文件长度，若为0，则文件可能不存在
 Sint64 Util_GetFileLength(const char *filename)
 {
-    RWops file;
-    file.fromFile(filename, "r");
+    RWops file(filename, "r");
     return file.getLength();
 }
 
@@ -68,111 +71,60 @@ void *Util_malloc(size_t size)
 }
 
 
-void *Util_MemoryFromFile(const char *fname, size_t * psize)
-{
-	Sint64 length = 0;
-	void *mem = NULL;
-    RWops file;
-
-    file.fromFile(fname, "r");
-    length = file.getLength();
-	mem = Util_malloc(length);
-    if (!mem)
-        goto out;
-    file.read(mem, 1, length);
-    file.close();
-	*psize = (size_t) length;
-	return mem;
-
-out:
-    Util_free(mem);
-    return NULL;
-}
-
 //////////////////////////////////////////////////////////////////////////////////////////
 // class MemoryBlock
 //////////////////////////////////////////////////////////////////////////////////////////
 
-
-
-int MemoryBlock::create(const char *fname)
+MemoryBlock::~MemoryBlock()
 {
-    if (m_ptr) {
-        DLOG("already created");
-        return 1;
-    }
-    create(Util_GetFileLength(fname));
-    readFile(fname);
+    Util_free(_ptr);
 }
 
+MemoryBlock::MemoryBlock(const char *fname)
+{
+    Sint64 len = Util_GetFileLength(fname);
+    alloc(len);
+    try {
+        readFile(fname);
+    }
+    catch(...) {
+        release();
+        throw;
+    }
+}
+
+MemoryBlock::MemoryBlock(size_t size)
+{
+    alloc(size);
+}
 
 int MemoryBlock::alloc(size_t size)
 {
-    m_ptr = Util_malloc(size);
-    m_size = size;
+    _ptr = Util_malloc(size);
+    _size = size;
     return 0;
 }
 
+void MemoryBlock::release()
+{
+    Util_free(_ptr);
+    _size = 0;
+}
 
 int MemoryBlock::read(RWops &file, size_t size)
 {
-    file.read(m_ptr, 1, size);
+    file.read(_ptr, 1, size);
 }
-
-
-
-int MemoryBlock::create(size_t size)
-{
-    m_ptr = Util_malloc(size);
-    m_size = size;
-    return 0;
-}
-
-
-#if 0
-int MemoryBlock::readFile(const char *fname)
-{
-	Sint64 length = 0;
-	SDL_RWops *rw = 0;
-
-	rw = SDL_RWFromFile(fname, "r");
-	if (!rw) {
-        Log("cannot open file: %s", fname);
-        goto out;
-    }
-	SDL_RWseek(rw, 0, RW_SEEK_END);
-	length = SDL_RWtell(rw);
-	SDL_RWseek(rw, 0, RW_SEEK_SET);
-
-	if (SDL_RWread(rw, m_ptr, 1, length) != length) {
-        Log("%s(): something wrong happed.");
-    }
-
-	SDL_RWclose(rw);
-    return 0;
-
-out:
-    if (rw)
-        SDL_RWclose(rw);
-    return 1;
-}
-#endif
 
 int MemoryBlock::readFile(const char *fn)
 {
-    RWops file;
-    file.fromFile(fn, "r");
-    file.read(m_ptr, 1, file.getLength());
+    RWops file(fn, "r");
+    file.read(_ptr, 1, file.getLength());
 }
 
-
-
-void MemoryBlock::destroy()
-{
-    Util_free(m_ptr);
-    m_size = 0;
-}
-
+//////////////////////////////////////////////////////////////////////////////////////////
+// utility functions
+//////////////////////////////////////////////////////////////////////////////////////////
 
 int clamp(int x, int min, int max)
 {
@@ -180,15 +132,3 @@ int clamp(int x, int min, int max)
 	x = x < min ? min : x;
 	return x;
 }
-
-
-#if 0
-void Util_free(VoidPtr &p)
-{
-    if (p) {
-        free(p);
-        p = NULL;
-    }
-}
-#endif
-
