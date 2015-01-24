@@ -44,6 +44,7 @@ void        Log(const char *fmt, ...);
 char        *va(const char *format, ...);
 void        *Util_malloc(size_t size);
 int         clamp(int x, int min, int max);
+const char *Util_GetResourcePath(const char *fname);
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Utils

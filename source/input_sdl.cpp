@@ -1,7 +1,6 @@
 #include <SDL.h>
 
 static const int KEYBUFFERSIZE = 256;
-
 static int keybuffer[KEYBUFFERSIZE];
 static int keybuf_start;
 static int keybuf_end;
@@ -109,6 +108,7 @@ static int KeyFilter(const SDL_Event *event)
 int Input_Init(void)
 {
     SDL_SetEventFilter(KeyFilter);
+    SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 	return 0;
 }
 
@@ -127,6 +127,7 @@ JY_GetKey
 ====================
 */
 
+#if 0
 int JY_GetKey(void)
 {
     static bool virgin = true;
@@ -159,5 +160,58 @@ int JY_GetKey(void)
     else
         return keycode;
 }
+#endif
 
+const char * JY_GetCommand(void)
+{
+    static bool virgin = true;
+    if (virgin) {
+        Input_Init();
+        virgin = false;
+    }
+	SDL_Event event;
+    SDLKey keycode = SDLK_UNKNOWN;
+	while (SDL_PollEvent(&event)) {
+		switch (event.type) {
+		case SDL_KEYDOWN:
+			keycode = event.key.keysym.sym;
+			if (keycode == SDLK_F4) {
+				return "quit";
+            }
+            else {
+                switch (keycode) {
+                case SDLK_RETURN:
+                case SDLK_SPACE:
+                    return "action";
+                    break;
+                case SDLK_ESCAPE:
+                    return "menu";
+                    break;
+                case SDLK_UP:
+                    return "up";
+                    break;
+                case SDLK_LEFT:
+                    return "left";
+                    break;
+                case SDLK_RIGHT:
+                    return "right";
+                    break;
+                case SDLK_DOWN:
+                    return "down";
+                    break;
+                }
+            }
+            break;
+
+			// When Close Window Button was pressed
+		case SDL_QUIT:
+			return "quit";
+			break;
+
+		default:
+			break;
+		}
+	}
+    return "null";
+}
 

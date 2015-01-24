@@ -49,15 +49,12 @@ public:
 
 GameIniter::GameIniter()
 {
-    if (Init_Cache()) {
-        throw GameException("Init_Cache() failed.");
-    }
-    JY_PicInit();
+    ImageCache_Init();
 }
 
 GameIniter::~GameIniter()
 {
-    JY_PicInit();
+    ImageCache_Quit();
     JY_UnloadMMap();
     JY_UnloadSMap();
     JY_UnloadWarMap();
@@ -104,7 +101,7 @@ int main(int argc, char *argv[])
         jy::ScriptIniter  script;
         script.loadAndRun("script/main.lua");
     }
-    catch (const SDLException& e) {
+    catch (const std::exception& e) {
         DLOG(e.what());
     }
 	return 0;

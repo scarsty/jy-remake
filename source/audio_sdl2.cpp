@@ -132,7 +132,7 @@ void Sdl2Audio::playMidi(const char *filename)
         stopMidi();
         _pCurrentMusic = Mix_LoadMUS(filename);
         if (_pCurrentMusic == NULL) {
-            throw ResourceException(filename);
+            throw ResourceException(va("cannot open file: %s", filename));
         }
         Mix_VolumeMusic(kMusicVolume);
         Mix_PlayMusic(_pCurrentMusic, -1);

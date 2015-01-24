@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <cstring>
+#include <windows.h>
 #include "util.h"
 
 #if !defined (ANDROID)
@@ -41,7 +41,7 @@ void Log(const char *fmt, ...)
 
 char *va(const char *format, ...)
 {
-	static char string[256];
+	static char string[512];
 	va_list argptr;
 
 	va_start(argptr, format);
@@ -60,6 +60,17 @@ void *Util_malloc(size_t size)
         exit(-1);
     }
     return ret;
+}
+
+const char *Util_GetResourcePath(const char *fname)
+{
+    char buf[260];
+#ifdef _WIN32
+    GetModuleFileName(NULL, buf, sizeof(buf));
+#else
+#error Unsupported platform!
+#endif
+    return va("%s\\%s", buf, fname);
 }
 
 

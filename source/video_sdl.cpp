@@ -453,7 +453,7 @@ Video *Video::_instance = NULL;
 Video *Video::getInstance()
 {
     if (_instance == NULL) {
-        _instance = new SdlVideo(800, 500, 320, 200);
+        _instance = new SdlVideo(640, 400, 320, 200);
     }
     return _instance;
 }
@@ -681,6 +681,7 @@ void SdlVideo::blitSurface(SDL_Surface *lps, int x, int y, int flag, int alpha)
 	rect.x = (Sint16) x;
 	rect.y = (Sint16) y;
 
+    SDL_SetColorKey(lps, SDL_SRCCOLORKEY, COLOR_KEY);
 	if ((flag & 0x2) == 0) {	// Ã»ÓÐalpla
 		SDL_BlitSurface(lps, NULL, _screenSurface, &rect);
 	}
@@ -698,9 +699,17 @@ void SdlVideo::blitSurface(SDL_Surface *lps, int x, int y, int flag, int alpha)
 			SDL_SetColorKey(tmps, SDL_SRCCOLORKEY, colorKey);
 			SDL_BlitSurface(lps, NULL, tmps, NULL);
 			SDL_LockSurface(tmps);
+
+            if (flag & 0x4) {
+                // black
+                binarizationSurface(tmps, colorKey, 0);
+            }
+            else if (flag & 0x8) {
+                binarizationSurface(tmps, colorKey, 0xffffffff);
+            }
+#if 0
             int i, j;
 
-#if 0
 			if (bpp == 32) {
 				for (j = 0; j < tmps.get()->h; j++) {
 					Uint32 *p = (Uint32 *) ((Uint8 *) tmps.get()->pixels + j * tmps.get()->pitch);
@@ -716,8 +725,7 @@ void SdlVideo::blitSurface(SDL_Surface *lps, int x, int y, int flag, int alpha)
 				}
 			}
 #endif
-
-            binarizationSurface(tmps, colorKey, flag & 0x4? 0 : 0xffffffff);
+            //binarizationSurface(tmps, colorKey, flag & 0x4? 0 : 0xffffffff);
 			SDL_UnlockSurface(tmps);
 			SDL_SetAlpha(tmps, SDL_SRCALPHA, (Uint8) alpha);
 			SDL_BlitSurface(tmps, NULL, _screenSurface, &rect);

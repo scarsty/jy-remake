@@ -231,7 +231,8 @@ void Input_Quit(void)
  *  -3: Window's close button is pressed
  */
 
-int JY_GetKey(void)
+//int JY_GetKey(void)
+const char *JY_GetCommand(void)
 {
     static bool virgin = true;
     static SDL_Keycode lastDir = -1;
@@ -247,14 +248,37 @@ int JY_GetKey(void)
 		switch (event.type) {
 		case SDL_KEYDOWN:
 			keycode = event.key.keysym.sym;
-			if (keycode == SDLK_F4)
-				return -3;
-			return keycode;
+			if (keycode == SDLK_F4) {
+				return "quit";
+            }
+            else {
+                switch (keycode) {
+                case SDLK_ESCAPE:
+                    return "menu";
+                    break;
+                case SDLK_RETURN:
+                case SDLK_SPACE:
+                    return "action";
+                    break;
+                case SDLK_UP:
+                    return "up";
+                    break;
+                case SDLK_LEFT:
+                    return "left";
+                    break;
+                case SDLK_RIGHT:
+                    return "right";
+                    break;
+                case SDLK_DOWN:
+                    return "down";
+                    break;
+                }
+            }
 			break;
 
 			// When Close Window Button was pressed
 		case SDL_QUIT:
-			return -3;
+			return "quit";
 			break;
         case SDL_FINGERDOWN:
             touchPt.x = event.tfinger.x * Video_GetWindowWidth();
@@ -299,10 +323,31 @@ int JY_GetKey(void)
 		}
 	}
 
-	if (dirTb.down)
-		return lastDir;
+	if (dirTb.down) {
+        switch (lastDir) {
+        case SDLK_ESCAPE:
+            return "menu";
+            break;
+        case SDLK_RETURN:
+        case SDLK_SPACE:
+            return "action";
+            break;
+        case SDLK_UP:
+            return "up";
+            break;
+        case SDLK_LEFT:
+            return "left";
+            break;
+        case SDLK_RIGHT:
+            return "right";
+            break;
+        case SDLK_DOWN:
+            return "down";
+            break;
+        }
+    }
 
-	return keycode;
+	return "null";
 }
 
 
