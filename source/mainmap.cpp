@@ -477,11 +477,6 @@ size_t WorldMap::coord2Index(int x, int y)
 
 int WorldMap::unload()
 {
-    //_earthLayerData.destroy();
-	//_surfaceLayerData.destroy();
-	//_buildingLayerData.destroy();
-	//_buildxLayerData.destroy();
-	//_buildyLayerData.destroy();
     _earthLayerData.reset(NULL);
     _surfaceLayerData.reset(NULL);
     _buildingLayerData.reset(NULL);
@@ -490,6 +485,10 @@ int WorldMap::unload()
     return 0;
 }
 
+
+/**
+ * 加载地图时，把地图需要用到的贴图也加载，这样更符合人的思维习惯。
+ */
 
 int WorldMap::load(const char *earthname, const char *surfacename, const char *buildingname,
         const char *buildxname, const char *buildyname)
@@ -586,13 +585,15 @@ int WorldMap::set(short x, short y, BuildingType flag, short v)
 // 主地图建筑排序 
 // x,y 主角坐标
 // mypic 主角贴图编号
+// screen_w, screen_h: Screen width and height in pixel.
+// extra_x, extra_y: extra map width and height in tiles.
 
 int WorldMap::sortBuildings(short x, short y, short mypic, int screen_w, int screen_h, 
-        int extra_x, int extra_y, int x_scale, int y_scale)
+        int extra_x, int extra_y, int half_tile_w, int half_tile_h)
 {
 
-	int rangex = screen_w / (2 * x_scale) / 2 + 1 + extra_x;
-	int rangey = screen_h / (2 * y_scale) / 2 + 1;
+	int rangex = screen_w / (2 * half_tile_w) / 2 + 1 + extra_x;
+	int rangey = screen_h / (2 * half_tile_h) / 2 + 1;
 
 	int range = rangex + rangey + extra_y;
 
@@ -619,12 +620,12 @@ int WorldMap::sortBuildings(short x, short y, short mypic, int screen_w, int scr
 	for (i = xmin; i <= xmax; i++) {
 		dy = ymin;
 		for (j = ymin; j <= ymax; j++) {
-			int ij3 = JY_GetMMap(i, j, kLayerBuildx);
-			int ij4 = JY_GetMMap(i, j, kLayerBuildy);
-			if ((ij3 != 0) && (ij4 != 0)) {
+			int xoff = JY_GetMMap(i, j, kLayerBuildx);
+			int yoff = JY_GetMMap(i, j, kLayerBuildy);
+			if ((xoff != 0) && (yoff != 0)) {
 				repeat = 0;
 				for (k = 0; k < p; k++) {
-					if ((buildings[k].x == ij3) && (buildings[k].y == ij4)) {
+					if ((buildings[k].x == xoff) && (buildings[k].y == yoff)) {
 						repeat = 1;
 						if (k == p - 1)
 							break;
@@ -633,7 +634,7 @@ int WorldMap::sortBuildings(short x, short y, short mypic, int screen_w, int scr
 							int im3 = JY_GetMMap(i, m, kLayerBuildx);
 							int im4 = JY_GetMMap(i, m, kLayerBuildy);
 							if ((im3 != 0) && (im4 != 0)) {
-								if ((im3 != ij3) || (im4 != ij4)) {
+								if ((im3 != xoff) || (im4 != yoff)) {
 									if ((im3 != buildings[k].x) || (im4 != buildings[k].y)) {
 										tmp_building = buildings[p - 1];
 										memmove(&buildings[k + 1], &buildings[k], (p - 2 - k + 1) * sizeof(TBuilding));
@@ -648,8 +649,8 @@ int WorldMap::sortBuildings(short x, short y, short mypic, int screen_w, int scr
 				}
 
 				if (repeat == 0) {
-					buildings[p].x = ij3;
-					buildings[p].y = ij4;
+					buildings[p].x = xoff;
+					buildings[p].y = yoff;
 					buildings[p].num = JY_GetMMap(buildings[p].x, buildings[p].y, kLayerBuilding);
 					p++;
 				}
@@ -685,10 +686,10 @@ int WorldMap::draw(int x, int y, int mypic)
 	jstart = (rect.y - Video_GetScreenHeight() / 2) / (2 * kHalfTileHeight) - 1;
 	jend = (rect.y + rect.h - Video_GetScreenHeight() / 2) / (2 * kHalfTileHeight) + 1;
 
-
-
 	//建筑排序
-	buildings_num = sortBuildings((short) x, (short) y, (short) mypic, Video_GetScreenWidth(), Video_GetScreenHeight(), kExtraWidth, kExtraHeight, kHalfTileWidth, kHalfTileHeight);
+	buildings_num = sortBuildings((short) x, (short) y, (short) mypic, 
+            Video_GetScreenWidth(), Video_GetScreenHeight(), 
+            kExtraWidth, kExtraHeight, kHalfTileWidth, kHalfTileHeight);
 	Video_FillColor(0, 0, 0, 0, 0);
 	for (j = 0; j <= 2 * jend - 2 * jstart + kExtraHeight; j++) {
 		for (i = istart; i <= iend; i++) {
@@ -786,7 +787,6 @@ int JY_SetD(int sceneid, int id, int i, int v)
 int JY_DrawSMap(int sceneid, int x, int y, int xoff, int yoff, int mypic)
 {
     return theSceneMap.draw(sceneid, x, y, xoff, yoff, mypic);
-
 }
 
 

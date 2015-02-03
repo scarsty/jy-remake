@@ -91,6 +91,7 @@ int ScriptIniter::loadAndRun(const char *filename)
 //========================================================================================
 
 
+#if 1
 int main(int argc, char *argv[])
 {
     try {
@@ -102,8 +103,74 @@ int main(int argc, char *argv[])
         script.loadAndRun("script/main.lua");
     }
     catch (const std::exception& e) {
-        DLOG(e.what());
+        Log(e.what());
     }
 	return 0;
 }
 
+#else
+
+int x = 1;
+int y = 1;
+
+
+enum ScreenState {
+    ssNormal,
+    ssFadingOut,
+    ssFadingIn
+};
+
+
+ScreenState ss;
+
+
+void MoveEveryOne()
+{
+}
+
+
+void RenderScreen()
+{
+    JY_DrawMMap(480, 0, 1);
+    Video_UpdateScreen();
+}
+
+
+void GameLoop(void)
+{
+    SDL_Event event;
+    while (true) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                return;
+            }
+        }
+        MoveEveryOne();
+        RenderScreen();
+        SDL_Delay(33);
+    }
+}
+
+
+int main(int argc, char *argv[])
+{
+    try {
+        jy::Sdl2Initer sdl2;
+        std::auto_ptr<Video> video(Video::getInstance());
+        jy::GameIniter game;
+        JY_LoadMMap("data/earth.002",
+                "data/surface.002",
+                "data/building.002",
+                "data/buildx.002",
+                "data/buildy.002");
+        JY_PicLoadFile("data/mmap.idx", "data/mmap.grp", 0);
+        JY_PicLoadFile("data/hdgrp.idx", "data/hdgrp.grp", 1);
+        GameLoop();
+    }
+    catch (const std::exception& e) {
+        Log(e.what());
+    }
+    return 0;
+}
+
+#endif

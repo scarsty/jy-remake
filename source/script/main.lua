@@ -21,8 +21,8 @@
 
 CONFIG={}
 
-CONFIG.DataPath			= "data/"
 CONFIG.os_charset		= 0      -- 显示字符集 0 简体 1 繁体
+CONFIG.DataPath         = lib.GetDataPath()
 
 ----------------------------------------------------------------------------------------------------
 -- End of config.lua
@@ -78,9 +78,8 @@ function SetGlobalConst()
 	CC.OSCharSet=CONFIG.os_charset       --OS 字符集，0 GB, 1 Big5
 	CC.FontName=""  -- 字体
 
-    -- 必须与C++代码中的值保持一致，请不要修改
-	CC.ScreenW=320
-	CC.ScreenH=200
+    -- 必须与C++代码中的值保持一致，必须用GetScreenSize()获得
+    CC.ScreenW, CC.ScreenH = lib.GetScreenSize()
 
 	--定义记录文件名。S和D由于是固定大小，因此不再定义idx了。
 	CC.R_IDXFilename={[0]=CONFIG.DataPath .. "ranger.idx",
@@ -126,8 +125,7 @@ function SetGlobalConst()
 	CC.WarMapFile={CONFIG.DataPath .. "warfld.idx",
 	CONFIG.DataPath .. "warfld.grp"}
 
-	CC.TalkIdxFile=CONFIG.DataPath .. "oldtalk.idx"
-	CC.TalkGrpFile=CONFIG.DataPath .. "oldtalk.grp"
+    CC.TALK_FILE = CONFIG.DataPath .. "oldtalk"
 
 	--定义记录文件R×结构。  lua不支持结构，无法直接从二进制文件中读取，因此需要这些定义，用table中不同的名字来仿真结构。
 	CC.MAX_TEAMATES=6          --队伍人数
@@ -3681,8 +3679,8 @@ end
 --从old_talk.lua中读取编号为stringId的字符串。
 --需要的时候读取，可以节约内存占用，不用再把整个文件读入内存数据了。
 function GetStringById(stringId)            --从文件读取一条对话
-	local idxfile=CC.TalkIdxFile
-	local grpfile=CC.TalkGrpFile
+    local idxfile = CC.TALK_FILE .. ".idx"
+    local grpfile = CC.TALK_FILE .. ".grp"
 
 	local length=filelength(idxfile)
 

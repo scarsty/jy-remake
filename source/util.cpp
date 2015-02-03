@@ -64,8 +64,8 @@ void *Util_malloc(size_t size)
 
 const char *Util_GetResourcePath(const char *fname)
 {
-    char buf[260];
 #ifdef _WIN32
+    char buf[260];
     GetModuleFileName(NULL, buf, sizeof(buf));
 #else
 #error Unsupported platform!
@@ -93,7 +93,8 @@ RWops::RWops(const char *filename, const char *mode)
 {
     _rw = SDL_RWFromFile(filename, mode);
     if (!_rw) {
-        throw HardwareException("SDL_RWFromFile() failed.");
+        throw HardwareException(
+            va("SDL_RWFromFile() failed. Filename: %s", filename));
     }
 }
 
@@ -101,7 +102,7 @@ RWops::RWops(const void *mem, int size)
 {
     _rw = SDL_RWFromConstMem(mem, size);
     if (!_rw) {
-        throw HardwareException("SDL_RWFromFile() failed.");
+        throw HardwareException("SDL_RWFromConstMem() failed.");
     }
 }
 
@@ -109,7 +110,7 @@ RWops::RWops(void *mem, int size)
 {
     _rw = SDL_RWFromMem(mem, size);
     if (!_rw) {
-        throw HardwareException("SDL_RWFromFile() failed.");
+        throw HardwareException("SDL_RWFromMem() failed.");
     }
 }
 
@@ -118,7 +119,7 @@ RWops::RWops(FILE *fp, bool autoClose)
 {
     _rw = SDL_RWFromFP(fp, autoClose? SDL_TRUE : SDL_FALSE);
     if (!_rw) {
-        throw HardwareException("SDL_RWFromFile() failed.");
+        throw HardwareException("SDL_RWFromFP() failed.");
     }
 }
 

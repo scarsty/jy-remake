@@ -12,6 +12,7 @@ script.cpp - 导出给Lua的C函数。
 #include <string.h>
 #include <stdlib.h>
 #include <SDL.h>
+#include <windows.h>
 #include <limits.h>
 
 #ifdef __cplusplus
@@ -505,6 +506,31 @@ static int HAPI_DrawWarMap(lua_State * pL)
 	return 0;
 }
 
+static int HAPI_GetScreenSize(lua_State *pL)
+{
+    lua_pushnumber(pL, Video_GetScreenWidth());
+    lua_pushnumber(pL, Video_GetScreenHeight());
+    return 2;
+}
+
+/**
+ * Data Path 根据运行平台的不同而不同，这个函数必须是跨平台的
+ * 现在只是可以在Windows下可用。
+ */
+static int HAPI_GetDataPath(lua_State *pL)
+{
+#ifdef _WIN32
+    char buf[260];
+    GetModuleFileName(NULL, buf, sizeof(buf));
+    *strrchr(buf, '\\') = '\0';
+    strcat(buf, "\\data\\");
+    lua_pushstring(pL, buf);
+#else
+#error Unsupported platform!
+#endif
+    return 1;
+}
+
 // byte数组lua函数
 
 /*  lua 调用形式：(注意，位置都是从0开始
@@ -664,6 +690,8 @@ static int Byte_setstr(lua_State * pL)
 }
 
 
+
+
 //定义的lua接口函数名
 static const struct luaL_reg jylib[] = {
 	{"Log"             , HAPI_Log}             , 
@@ -714,9 +742,11 @@ static const struct luaL_reg jylib[] = {
 	{"AudioFadeOut"    , HAPI_AudioFadeOut}    , 
 	{"GetFileLength"   , HAPI_GetFileLength}   , 
 	{"GetDialogString" , HAPI_GetDialogString} , 
+	{"GetScreenSize"   , HAPI_GetScreenSize}   , 
+	{"GetDataPath"     , HAPI_GetDataPath}     , 
 
 	{NULL              , NULL}
-};
+	};
 
 
 static const struct luaL_reg bytelib[] = {
