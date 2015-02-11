@@ -580,12 +580,12 @@ static int Byte_loadfile(lua_State * pL)
 
 static int Byte_savefile(lua_State * pL)
 {
-	char *pData = (char *) lua_touserdata(pL, 1);
+	Uint8 *pData = (Uint8 *) lua_touserdata(pL, 1);
 	const char *filename = lua_tostring(pL, 2);
 	int start = (int) lua_tonumber(pL, 3);
 	int length = (int) lua_tonumber(pL, 4);
 
-    RWops file(filename, "r");
+    RWops file(filename, "r+");
     file.seek(start, RW_SEEK_SET);
     file.write(pData, 1, length);
 	return 0;

@@ -588,7 +588,7 @@ int WorldMap::set(short x, short y, BuildingType flag, short v)
 // screen_w, screen_h: Screen width and height in pixel.
 // extra_x, extra_y: extra map width and height in tiles.
 
-int WorldMap::sortBuildings(short x, short y, short mypic, int screen_w, int screen_h, 
+void WorldMap::sortBuildings(short x, short y, short mypic, int screen_w, int screen_h, 
         int extra_x, int extra_y, int half_tile_w, int half_tile_h)
 {
 
@@ -608,10 +608,10 @@ int WorldMap::sortBuildings(short x, short y, short mypic, int screen_w, int scr
 
 	int i, j, k, m;
 	int dy;
-	int repeat = 0;
-	int p = 0;
-
-	TBuilding tmp_building;
+	bool repeat = false;
+    std::list<TBuilding>& sb = _sortedBuildings;
+	//int p = 0;
+    sb.clear();
 
 	JY_SetMMap(x, y, kLayerBuilding, (short) (mypic * 2));
 	JY_SetMMap(x, y, kLayerBuildx, x);
@@ -623,52 +623,45 @@ int WorldMap::sortBuildings(short x, short y, short mypic, int screen_w, int scr
 			int xoff = JY_GetMMap(i, j, kLayerBuildx);
 			int yoff = JY_GetMMap(i, j, kLayerBuildy);
 			if ((xoff != 0) && (yoff != 0)) {
-				repeat = 0;
-				for (k = 0; k < p; k++) {
-					if ((buildings[k].x == xoff) && (buildings[k].y == yoff)) {
-						repeat = 1;
-						if (k == p - 1)
-							break;
-
-						for (m = j - 1; m >= dy; m--) {
-							int im3 = JY_GetMMap(i, m, kLayerBuildx);
-							int im4 = JY_GetMMap(i, m, kLayerBuildy);
-							if ((im3 != 0) && (im4 != 0)) {
-								if ((im3 != xoff) || (im4 != yoff)) {
-									if ((im3 != buildings[k].x) || (im4 != buildings[k].y)) {
-										tmp_building = buildings[p - 1];
-										memmove(&buildings[k + 1], &buildings[k], (p - 2 - k + 1) * sizeof(TBuilding));
-										buildings[k] = tmp_building;
-									}
-								}
-							}
-						}
-						dy = j + 1;
-						break;
-					}
-				}
-
-				if (repeat == 0) {
-					buildings[p].x = xoff;
-					buildings[p].y = yoff;
-					buildings[p].num = JY_GetMMap(buildings[p].x, buildings[p].y, kLayerBuilding);
-					p++;
-				}
+				repeat = false;
+                std::list<TBuilding>::iterator it;
+                for (it = sb.begin(); it != sb.end(); ++it) {
+                    if (it->x == xoff && it->y == yoff) {
+                        repeat = true;
+                        if (it == --sb.end())
+                            break;
+                        for (m = j - 1; m >= dy; m--) {
+                            int im3 = JY_GetMMap(i, m, kLayerBuildx);
+                            int im4 = JY_GetMMap(i, m, kLayerBuildy);
+                            if (im3 != 0 && im4 != 0) {
+                                if (im3 != xoff || im4 != yoff) {
+                                    if (im3 != it->x || im4 != it->y) {
+                                        std::list<TBuilding>::iterator last = --sb.end();
+                                        sb.insert(it, *last);
+                                        sb.erase(last);
+                                    }
+                                }
+                            }
+                        }
+                        dy = j + 1;
+                        break;
+                    }
+                }
+                if (!repeat) {
+                    sb.insert(sb.end(),
+                        TBuilding(xoff, yoff, JY_GetMMap(xoff, yoff, 
+                                kLayerBuilding)));
+                }
 			}
 		}
 	}
-
-	//buildings_num = p;
-
 	JY_SetMMap(x, y, kLayerBuilding, bak);
 	JY_SetMMap(x, y, kLayerBuildx, bakx);
 	JY_SetMMap(x, y, kLayerBuildy, baky);
-
-	return p;
 }
 
 
-int WorldMap::draw(int x, int y, int mypic)
+void WorldMap::draw(int x, int y, int mypic)
 {
 
 	int i, j;
@@ -677,7 +670,6 @@ int WorldMap::draw(int x, int y, int mypic)
 	int picnum;
 	int istart, iend, jstart, jend;
 	SDL_Rect rect;
-	int buildings_num = 0;
 
 	rect = Video_GetCanvas()->clip_rect;
 	//根据Video_GetCanvas()的clip来确定循环参数。提高绘制速度
@@ -687,7 +679,7 @@ int WorldMap::draw(int x, int y, int mypic)
 	jend = (rect.y + rect.h - Video_GetScreenHeight() / 2) / (2 * kHalfTileHeight) + 1;
 
 	//建筑排序
-	buildings_num = sortBuildings((short) x, (short) y, (short) mypic, 
+	sortBuildings((short) x, (short) y, (short) mypic, 
             Video_GetScreenWidth(), Video_GetScreenHeight(), 
             kExtraWidth, kExtraHeight, kHalfTileWidth, kHalfTileHeight);
 	Video_FillColor(0, 0, 0, 0, 0);
@@ -712,19 +704,77 @@ int WorldMap::draw(int x, int y, int mypic)
 		}
 	}
 
-	for (i = 0; i < buildings_num; i++) {
-		i1 = buildings[i].x - x;
-		j1 = buildings[i].y - y;
+    std::list<TBuilding>& sb = _sortedBuildings;
+    std::list<TBuilding>::iterator it;
+    for (it = sb.begin(); it != sb.end(); ++it) {
+        i1 = it->x - x;
+        j1 = it->y - y;
 		x1 = kHalfTileWidth * (i1 - j1) + Video_GetScreenWidth() / 2;
 		y1 = kHalfTileHeight * (i1 + j1) + Video_GetScreenHeight() / 2;
-		picnum = buildings[i].num;
+		picnum = it->num;
 		if (picnum > 0) {
 			Image_DrawCachedImage(0, picnum, x1, y1, PIC_JUST_DRAW, 0);
 		}
 	}
-
-	return 0;
 }
+#if 0 
+void WorldMap::draw(int x, int y, int mypic)
+{
+
+	int i, j;
+	int i1, j1;
+	int x1, y1;
+	int picnum;
+	int istart, iend, jstart, jend;
+	SDL_Rect rect;
+
+	rect = Video_GetCanvas()->clip_rect;
+	//根据Video_GetCanvas()的clip来确定循环参数。提高绘制速度
+	istart = (rect.x - Video_GetScreenWidth() / 2) / (2 * kHalfTileWidth) - 1 - kExtraWidth;
+	iend = (rect.x + rect.w - Video_GetScreenWidth() / 2) / (2 * kHalfTileWidth) + 1 + kExtraWidth;
+	jstart = (rect.y - Video_GetScreenHeight() / 2) / (2 * kHalfTileHeight) - 1;
+	jend = (rect.y + rect.h - Video_GetScreenHeight() / 2) / (2 * kHalfTileHeight) + 1;
+
+	//建筑排序
+	sortBuildings((short) x, (short) y, (short) mypic, 
+            Video_GetScreenWidth(), Video_GetScreenHeight(), 
+            kExtraWidth, kExtraHeight, kHalfTileWidth, kHalfTileHeight);
+	Video_FillColor(0, 0, 0, 0, 0);
+	for (j = 0; j <= 2 * jend - 2 * jstart + kExtraHeight; j++) {
+		for (i = istart; i <= iend; i++) {
+			i1 = i + j / 2 + jstart;
+			j1 = -i + j / 2 + j % 2 + jstart;
+
+			x1 = kHalfTileWidth * (i1 - j1) + Video_GetScreenWidth() / 2;
+			y1 = kHalfTileHeight * (i1 + j1) + Video_GetScreenHeight() / 2;
+
+			if (((x + i1) >= 0) && ((x + i1) < kWidth) && ((y + j1) >= 0) && ((y + j1) < kHeight)) {
+				picnum = JY_GetMMap(x + i1, y + j1, kLayerEarth);
+				if (picnum > 0) {
+					Image_DrawCachedImage(0, picnum, x1, y1, PIC_JUST_DRAW, 0);
+				}
+				picnum = JY_GetMMap(x + i1, y + j1, kLayerSurface);
+				if (picnum > 0) {
+					Image_DrawCachedImage(0, picnum, x1, y1, PIC_JUST_DRAW, 0);
+				}
+			}
+		}
+	}
+
+    std::list<TBuilding>& sb = _sortedBuildings;
+    std::list<TBuilding>::iterator it;
+    for (it = sb.begin(); it != sb.end(); ++it) {
+        i1 = it->x - x;
+        j1 = it->y - y;
+		x1 = kHalfTileWidth * (i1 - j1) + Video_GetScreenWidth() / 2;
+		y1 = kHalfTileHeight * (i1 + j1) + Video_GetScreenHeight() / 2;
+		picnum = it->num;
+		if (picnum > 0) {
+			Image_DrawCachedImage(0, picnum, x1, y1, PIC_JUST_DRAW, 0);
+		}
+	}
+}
+#endif
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // functions
@@ -881,7 +931,8 @@ int JY_SetMMap(short x, short y, BuildingType flag, short v)
 // 绘制主地图
 int JY_DrawMMap(int x, int y, int mypic)
 {
-    return theWorldMap.draw(x, y, mypic);
+    theWorldMap.draw(x, y, mypic);
+    return 0;
 }
 
 
