@@ -33,6 +33,14 @@ public:
         int num;
         TBuilding() : x(0), y(0), num(0) {}
         TBuilding(int x, int y, int num) : x(x), y(y), num(num) {}
+        bool operator<(const TBuilding& rhs) const 
+        {
+            if (x == rhs.x)
+                return y < rhs.y;
+            if (y == rhs.y)
+                return x < rhs.x;
+            return (x < rhs.x && y < rhs.y);
+        }
     };
 
     WorldMap();

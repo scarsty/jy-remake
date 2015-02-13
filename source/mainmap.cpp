@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <memory>
+#include <algorithm>
 #include "image.h"
 #include "video.h"
 #include "util.h"
@@ -639,6 +640,7 @@ void WorldMap::sortBuildings(short x, short y, short mypic, int screen_w, int sc
                                         std::list<TBuilding>::iterator last = --sb.end();
                                         sb.insert(it, *last);
                                         sb.erase(last);
+                                        it = --it;
                                     }
                                 }
                             }
