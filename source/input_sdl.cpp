@@ -1,12 +1,10 @@
 #include <SDL.h>
-#include "video.h"
 
-#define KEYBUFFERSIZE	256		// 键盘缓冲区大小
-
-static int keybuffer[256];
+static const int KEYBUFFERSIZE = 256;
+static int keybuffer[KEYBUFFERSIZE];
 static int keybuf_start;
 static int keybuf_end;
-static int keymap[256];
+static int keymap[KEYBUFFERSIZE];
 
 
 void KeyBuf_Init(void)
@@ -46,9 +44,7 @@ int KeyBuf_GetKey(void)
 }
 
 
-
-
-static int KeyFilter(void *userdata, SDL_Event * event)
+static int KeyFilter(const SDL_Event *event)
 {
 	static int Esc_KeyPress = 0;
 	static int Space_KeyPress = 0;
@@ -109,137 +105,10 @@ static int KeyFilter(void *userdata, SDL_Event * event)
 //过滤ESC、RETURN、SPACE键，使他们按下后不能重复。
 //static int KeyFilter(const SDL_Event *event)
 
-#if 0
-// 得到前面按下的字符
-int JY_GetKey()
-{
-	SDL_Event event;
-	int keyPress = -1;
-	while (SDL_PollEvent(&event)) {
-		switch (event.type) {
-		case SDL_KEYDOWN:
-			keyPress = event.key.keysym.sym;
-			break;
-		case SDL_MOUSEMOTION:
-			break;
-		case SDL_QUIT:
-			return -3;
-			break;				// though, you should not arrive here
-		default:
-			break;
-		}
-	}
-	return keyPress;
-}
-#endif
-Uint32 dirOrgX, dirOrgY;
-
-typedef struct tagTouchButton {
-    SDL_Rect        rect;
-    bool        down;
-    SDL_FingerID    fingerId;
-} TouchButton;
-
-TouchButton escTb, digTb, dirTb;
-
-SDL_Point upPt, leftPt, downPt, rightPt, centerPt;
-
-bool PtInRect(SDL_Point *pt, SDL_Rect *rect)
-{
-    return pt->x > rect->x && 
-        pt->x < rect->x + rect->w && 
-        pt->y > rect->y && 
-        pt->y < rect->y + rect->h;
-}
-
-
-int GetDistance(SDL_Point *pt1, SDL_Point *pt2)
-{
-    int dx = pt1->x - pt2->x;
-    int dy = pt1->y - pt2->y;
-    return dx * dx + dy * dy;
-}
-
-
-int GetMinItemIndex(int v[], size_t count)
-{
-    int value = 0;
-    int i = 0;
-    int ret = 0;
-
-    for (i=0, value=v[i], ret=i; i < count; i++) {
-        if (v[i] < value) {
-            value = v[i];
-            ret = i;
-        }
-    }
-    return ret;
-}
-
-int GetDirKey(SDL_Point *pt)
-{
-    int v[4];
-
-    v[0] = GetDistance(&upPt, pt);
-    v[1] = GetDistance(&leftPt, pt);
-    v[2] = GetDistance(&downPt, pt);
-    v[3] = GetDistance(&rightPt, pt);
-
-    switch (GetMinItemIndex(v, 4)) {
-        case 0:
-            return SDLK_UP;
-            break;
-        case 1:
-            return SDLK_LEFT;
-            break;
-        case 2:
-            return SDLK_DOWN;
-            break;
-        case 3:
-            return SDLK_RIGHT;
-            break;
-    }
-}
-
 int Input_Init(void)
 {
-    escTb.rect.x = Video_GetWindowWidth() / 2;
-    escTb.rect.y = 0;
-    escTb.rect.w = Video_GetWindowWidth() / 2;
-    escTb.rect.h = Video_GetWindowHeight() / 2;
-    escTb.down = false;
-    escTb.fingerId = -1;
-
-    digTb.rect.x = escTb.rect.x;
-    digTb.rect.y = escTb.rect.h;
-    digTb.rect.w = escTb.rect.w;
-    digTb.rect.h = escTb.rect.h;
-    digTb.down = false;
-    digTb.fingerId = -1;
-
-    dirTb.rect.x = 0;
-    dirTb.rect.y = 0;
-    dirTb.rect.w = Video_GetWindowWidth() / 2;
-    dirTb.rect.h = Video_GetWindowHeight();
-    dirTb.down = false;
-    dirTb.fingerId = -1;
-
-    centerPt.x = dirTb.rect.w / 2;
-    centerPt.y = dirTb.rect.h / 2;
-
-    upPt.x = centerPt.x;
-    upPt.y = 0;
-
-    leftPt.x = 0;
-    leftPt.y = centerPt.y;
-
-    downPt.x = centerPt.x;
-    downPt.y = dirTb.rect.h - 1;
-
-    rightPt.x = dirTb.rect.w - 1;
-    rightPt.y = centerPt.y;
-
-	SDL_SetEventFilter(KeyFilter, NULL);
+    SDL_SetEventFilter(KeyFilter);
+    SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 	return 0;
 }
 
@@ -250,11 +119,15 @@ void Input_Quit(void)
 
 
 /*
- * @return:
- *  -1: no keyboard input
- *  -3: Window's close button is pressed
- */
+====================
+JY_GetKey
+@return:
+    -1: no keypress
+    -3: window's close button is pressed
+====================
+*/
 
+#if 0
 int JY_GetKey(void)
 {
     static bool virgin = true;
@@ -263,10 +136,7 @@ int JY_GetKey(void)
         virgin = false;
     }
 	SDL_Event event;
-	SDL_Keycode keycode = -1;
-    SDL_Point touchPt;
-    static SDL_Keycode lastDir = -1;
-
+    SDLKey keycode = SDLK_UNKNOWN;
 	while (SDL_PollEvent(&event)) {
 		switch (event.type) {
 		case SDL_KEYDOWN:
@@ -281,53 +151,67 @@ int JY_GetKey(void)
 			return -3;
 			break;
 
-        case SDL_FINGERDOWN:
-            touchPt.x = event.tfinger.x * Video_GetWindowWidth();
-            touchPt.y = event.tfinger.y * Video_GetWindowHeight();
-            if (PtInRect(&touchPt, &escTb.rect) && !escTb.down) {
-                //SDL_Log("ESC Button Pressed");
-                escTb.down = true;
-                escTb.fingerId = event.tfinger.fingerId;
-                keycode = SDLK_ESCAPE;
-            } else if (PtInRect(&touchPt, &dirTb.rect) && !dirTb.down) {
-                //SDL_Log("Dir Button Pressed");
-                dirTb.down = true;
-                dirTb.fingerId = event.tfinger.fingerId;
-                keycode = GetDirKey(&touchPt);
-                lastDir = keycode;
-            } else if (PtInRect(&touchPt, &digTb.rect) && !digTb.down) {
-                //SDL_Log("Dig Button Pressed");
-                digTb.down = true;
-                digTb.fingerId = event.tfinger.fingerId;
-                keycode = SDLK_SPACE;
+		default:
+			break;
+		}
+	}
+    if (keycode == SDLK_UNKNOWN)
+        return -1;
+    else
+        return keycode;
+}
+#endif
+
+const char * JY_GetCommand(void)
+{
+    static bool virgin = true;
+    if (virgin) {
+        Input_Init();
+        virgin = false;
+    }
+	SDL_Event event;
+    SDLKey keycode = SDLK_UNKNOWN;
+	while (SDL_PollEvent(&event)) {
+		switch (event.type) {
+		case SDL_KEYDOWN:
+			keycode = event.key.keysym.sym;
+			if (keycode == SDLK_F4) {
+				return "quit";
+            }
+            else {
+                switch (keycode) {
+                case SDLK_RETURN:
+                case SDLK_SPACE:
+                    return "action";
+                    break;
+                case SDLK_ESCAPE:
+                    return "menu";
+                    break;
+                case SDLK_UP:
+                    return "up";
+                    break;
+                case SDLK_LEFT:
+                    return "left";
+                    break;
+                case SDLK_RIGHT:
+                    return "right";
+                    break;
+                case SDLK_DOWN:
+                    return "down";
+                    break;
+                }
             }
             break;
 
-        case SDL_FINGERUP:
-            if (event.tfinger.fingerId == escTb.fingerId) {
-                //SDL_Log("ESC Button Up");
-                escTb.down = false;
-                escTb.fingerId = -1;
-            } else if (event.tfinger.fingerId == dirTb.fingerId) {
-                //SDL_Log("Dir Button Up");
-                dirTb.down = false;
-                dirTb.fingerId = -1;
-            } else if (event.tfinger.fingerId == digTb.fingerId) {
-                //SDL_Log("Dig Button Up");
-                digTb.down = false;
-                digTb.fingerId = -1;
-            }
-            break;
+			// When Close Window Button was pressed
+		case SDL_QUIT:
+			return "quit";
+			break;
 
 		default:
 			break;
 		}
 	}
-
-	if (dirTb.down)
-		return lastDir;
-
-	return keycode;
+    return "null";
 }
-
 

@@ -12,6 +12,7 @@ script.cpp - 导出给Lua的C函数。
 #include <string.h>
 #include <stdlib.h>
 #include <SDL.h>
+#include <windows.h>
 #include <limits.h>
 
 #ifdef __cplusplus
@@ -54,8 +55,8 @@ static int HAPI_GetDialogString(lua_State *pL)
 static int HAPI_GetFileLength(lua_State *pL)
 {
     const char *str = lua_tostring(pL, 1);
-    lua_Number length = Util_GetFileLength(str);
-    lua_pushnumber(pL, length);
+    RWops rw(str);
+    lua_pushnumber(pL, rw.getLength());
     return 1;
 }
 
@@ -149,23 +150,14 @@ static int HAPI_DrawImage(lua_State * pL)
 
 static int HAPI_GetKey(lua_State * pL)
 {
-	int key = JY_GetKey();
-	if (key == -3) {
+	const char *cmdStr = JY_GetCommand();
+    if (strcmp(cmdStr, "quit") == 0) {
 		lua_pushstring(pL, "I'm Quiting!");
 		lua_error(pL); // 产生异常，从而强制退出。
 		return 1;
 	}
-	lua_pushnumber(pL, key);
+    lua_pushstring(pL, cmdStr);
 	return 1;
-}
-
-
-static int HAPI_EnableKeyRepeat(lua_State * pL)
-{
-	int delay = (int) lua_tonumber(pL, 1);
-	int interval = (int) lua_tonumber(pL, 2);
-	//SDL_EnableKeyRepeat(delay, interval);
-	return 0;
 }
 
 
@@ -241,7 +233,7 @@ static int HAPI_PlayWAV(lua_State * pL)
 	return 0;
 }
 
-static int HAPI_PicInit(lua_State * pL)
+static int HAPI_ClearImageCache(lua_State * pL)
 {
 	/*
 	   const char *filename;
@@ -251,8 +243,8 @@ static int HAPI_PicInit(lua_State * pL)
 	   filename="\0";
 	 */
 
-	JY_PicInit();
-
+	//JY_PicInit();
+    ImageCache_Clear();
 	return 0;
 }
 
@@ -514,6 +506,31 @@ static int HAPI_DrawWarMap(lua_State * pL)
 	return 0;
 }
 
+static int HAPI_GetScreenSize(lua_State *pL)
+{
+    lua_pushnumber(pL, Video_GetScreenWidth());
+    lua_pushnumber(pL, Video_GetScreenHeight());
+    return 2;
+}
+
+/**
+ * Data Path 根据运行平台的不同而不同，这个函数必须是跨平台的
+ * 现在只是可以在Windows下可用。
+ */
+static int HAPI_GetDataPath(lua_State *pL)
+{
+#ifdef _WIN32
+    char buf[260];
+    GetModuleFileName(NULL, buf, sizeof(buf));
+    *strrchr(buf, '\\') = '\0';
+    strcat(buf, "\\data\\");
+    lua_pushstring(pL, buf);
+#else
+#error Unsupported platform!
+#endif
+    return 1;
+}
+
 // byte数组lua函数
 
 /*  lua 调用形式：(注意，位置都是从0开始
@@ -563,12 +580,12 @@ static int Byte_loadfile(lua_State * pL)
 
 static int Byte_savefile(lua_State * pL)
 {
-	char *pData = (char *) lua_touserdata(pL, 1);
+	Uint8 *pData = (Uint8 *) lua_touserdata(pL, 1);
 	const char *filename = lua_tostring(pL, 2);
 	int start = (int) lua_tonumber(pL, 3);
 	int length = (int) lua_tonumber(pL, 4);
 
-    RWops file(filename, "r");
+    RWops file(filename, "r+");
     file.seek(start, RW_SEEK_SET);
     file.write(pData, 1, length);
 	return 0;
@@ -673,75 +690,78 @@ static int Byte_setstr(lua_State * pL)
 }
 
 
+
+
 //定义的lua接口函数名
 static const struct luaL_reg jylib[] = {
-	{"Log", HAPI_Log},
-	{"GetKey", HAPI_GetKey},
-	{"EnableKeyRepeat", HAPI_EnableKeyRepeat},
-	{"Delay", HAPI_Delay},
-	{"GetTime", HAPI_GetTime},
-	{"CharSet", HAPI_CharSet},
-	{"DrawStr", HAPI_DrawStr},
-	{"SetClip", HAPI_SetClip},
-	{"FillColor", HAPI_FillColor},
-	{"DarkenRect", HAPI_DarkenRect},
-	{"DrawRect", HAPI_DrawRect},
-	{"UpdateScreen", HAPI_UpdateScreen},
-	{"FadeIn", HAPI_FadeIn},
-	{"FadeOut", HAPI_FadeOut},
-	{"PicInit", HAPI_PicInit},
-	{"PicGetXY", HAPI_GetPicSize},
-	{"DrawCachedImage", HAPI_DrawCachedImage},
-	{"PicLoadFile", HAPI_PicLoadFile},
+	{"Log"             , HAPI_Log}             , 
+	{"GetKey"          , HAPI_GetKey}          , 
+	{"Delay"           , HAPI_Delay}           , 
+	{"GetTime"         , HAPI_GetTime}         , 
+	{"CharSet"         , HAPI_CharSet}         , 
+	{"DrawStr"         , HAPI_DrawStr}         , 
+	{"SetClip"         , HAPI_SetClip}         , 
+	{"FillColor"       , HAPI_FillColor}       , 
+	{"DarkenRect"      , HAPI_DarkenRect}      , 
+	{"DrawRect"        , HAPI_DrawRect}        , 
+	{"UpdateScreen"    , HAPI_UpdateScreen}    , 
+	{"FadeIn"          , HAPI_FadeIn}          , 
+	{"FadeOut"         , HAPI_FadeOut}         , 
+	{"ClearImageCache" , HAPI_ClearImageCache} , 
+	{"PicGetXY"        , HAPI_GetPicSize}      , 
+	{"DrawCachedImage" , HAPI_DrawCachedImage} , 
+	{"PicLoadFile"     , HAPI_PicLoadFile}     , 
 
-	//{"FullScreen",      HAPI_FullScreen},
+	//{"FullScreen"    , HAPI_FullScreen}      , 
 
-	{"DrawImage", HAPI_DrawImage},
+	{"DrawImage"       , HAPI_DrawImage}       , 
 
-	{"PlayMIDI", HAPI_PlayMIDI},
-	{"PlayWAV", HAPI_PlayWAV},
+	{"PlayMIDI"        , HAPI_PlayMIDI}        , 
+	{"PlayWAV"         , HAPI_PlayWAV}         , 
 
-	{"LoadMMap", HAPI_LoadMMap},
-	{"DrawMMap", HAPI_DrawMMap},
-	{"GetMMap", HAPI_GetMMap},
-	{"UnloadMMap", HAPI_UnloadMMap},
+	{"LoadMMap"        , HAPI_LoadMMap}        , 
+	{"DrawMMap"        , HAPI_DrawMMap}        , 
+	{"GetMMap"         , HAPI_GetMMap}         , 
+	{"UnloadMMap"      , HAPI_UnloadMMap}      , 
 
-	{"LoadSMap", HAPI_LoadSMap},
-	{"SaveSMap", HAPI_SaveSMap},
-	{"GetS", HAPI_GetS},
-	{"SetS", HAPI_SetS},
-	{"GetD", HAPI_GetD},
-	{"SetD", HAPI_SetD},
-	{"DrawSMap", HAPI_DrawSMap},
+	{"LoadSMap"        , HAPI_LoadSMap}        , 
+	{"SaveSMap"        , HAPI_SaveSMap}        , 
+	{"GetS"            , HAPI_GetS}            , 
+	{"SetS"            , HAPI_SetS}            , 
+	{"GetD"            , HAPI_GetD}            , 
+	{"SetD"            , HAPI_SetD}            , 
+	{"DrawSMap"        , HAPI_DrawSMap}        , 
 
-	{"LoadWarMap", HAPI_LoadWarMap},
-	{"GetWarMap", HAPI_GetWarMap},
-	{"SetWarMap", HAPI_SetWarMap},
-	{"CleanWarMap", HAPI_CleanWarMap},
+	{"LoadWarMap"      , HAPI_LoadWarMap}      , 
+	{"GetWarMap"       , HAPI_GetWarMap}       , 
+	{"SetWarMap"       , HAPI_SetWarMap}       , 
+	{"CleanWarMap"     , HAPI_CleanWarMap}     , 
 
-	{"DrawWarMap", HAPI_DrawWarMap},
+	{"DrawWarMap"      , HAPI_DrawWarMap}      , 
 
-	{"AudioFadeOut", HAPI_AudioFadeOut},
-    {"GetFileLength", HAPI_GetFileLength},
-    {"GetDialogString", HAPI_GetDialogString},
+	{"AudioFadeOut"    , HAPI_AudioFadeOut}    , 
+	{"GetFileLength"   , HAPI_GetFileLength}   , 
+	{"GetDialogString" , HAPI_GetDialogString} , 
+	{"GetScreenSize"   , HAPI_GetScreenSize}   , 
+	{"GetDataPath"     , HAPI_GetDataPath}     , 
 
-	{NULL, NULL}
-};
+	{NULL              , NULL}
+	};
 
 
 static const struct luaL_reg bytelib[] = {
-	{"create", Byte_create},
-	{"loadfile", Byte_loadfile},
-	{"savefile", Byte_savefile},
-	{"get16", Byte_get16},
-	{"set16", Byte_set16},
-	{"getu16", Byte_getu16},
-	{"setu16", Byte_setu16},
-	{"get32", Byte_get32},
-	{"set32", Byte_set32},
-	{"getstr", Byte_getstr},
-	{"setstr", Byte_setstr},
-	{NULL, NULL}
+	{"create"   , Byte_create}   , 
+	{"loadfile" , Byte_loadfile} , 
+	{"savefile" , Byte_savefile} , 
+	{"get16"    , Byte_get16}    , 
+	{"set16"    , Byte_set16}    , 
+	{"getu16"   , Byte_getu16}   , 
+	{"setu16"   , Byte_setu16}   , 
+	{"get32"    , Byte_get32}    , 
+	{"set32"    , Byte_set32}    , 
+	{"getstr"   , Byte_getstr}   , 
+	{"setstr"   , Byte_setstr}   , 
+	{NULL       , NULL}
 };
 
 
@@ -843,7 +863,7 @@ int Script_LoadAndRun(const char *filename)
 {
 	lua_State *pL = theLuaState;
 	int ret = 0;
-    MemoryBlock buf(Util_GetFileLength(filename) + 1);
+    MemoryBlock buf(RWops(filename).getLength() + 1);
     buf.readFile(filename);
     static_cast<char *>(buf.getPtr())[buf.getSize()] = 0; // add null terminator
 
@@ -863,6 +883,49 @@ void Script_GetGlobal(const char *name)
 	lua_getglobal(theLuaState, name);	//读取config定义的值
 }
 
+/**
+ * 重定向Lua中的require路径，这样就可以require打包文件中的Lua模块。
+ */
+static int MyLoader(lua_State* pL)
+{
+    char fname[260]={0,};
+    strcpy(fname, lua_tostring(pL, 1));
+    strcat(fname, ".lua");
+    RWops rw(fname);
+    size_t size = rw.getLength();
+    if(size > 0) {
+        MemoryBlock mb(size);
+        mb.readFile(fname);
+        luaL_loadbuffer(pL, (const char*)mb.getPtr(), size, fname);		
+    }
+    else {
+        lua_pushstring(pL, va("cannot load Lua module: %s", fname));
+    }
+    return 1;
+}
+
+
+static void AddMyLoader(lua_State *pL)
+{
+    lua_getfield(pL, LUA_GLOBALSINDEX, "package");	// push "package"
+    lua_getfield(pL, -1, "loaders");					// push "package.loaders"
+    lua_remove(pL, -2);								// remove "package"
+    // Count the number of entries in package.loaders.
+    // Table is now at index -2, since 'nil' is right on top of it.
+    // lua_next pushes a key and a value onto the stack.
+    int numLoaders = 0;
+    lua_pushnil(pL);
+    while (lua_next(pL, -2) != 0) {
+        lua_pop(pL, 1);
+        numLoaders++;
+    }
+    lua_pushinteger(pL, numLoaders + 1);
+    lua_pushcfunction(pL, MyLoader);
+    lua_rawset(pL, -3);
+    // Table is still on the stack.  Get rid of it now.
+    lua_pop(pL, 1);
+}
+
 
 int Script_Init(void)
 {
@@ -877,6 +940,7 @@ int Script_Init(void)
     }
 	luaL_openlibs(theLuaState);
 	RegisterFunctions(theLuaState);
+    //AddMyLoader(theLuaState);
 
 	return 0;
 }

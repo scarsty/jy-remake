@@ -2,6 +2,7 @@
 #define JY_MAINMAP_H
 
 #include "util.h"
+#include <list>
 
 typedef enum
 {
@@ -26,32 +27,37 @@ public:
     static const int kWidth = 480;
     static const int kHeight = 480;
 
-    typedef struct Building {
+    struct TBuilding {
         int x;
         int y;
         int num;
-    }TBuilding;
+        TBuilding() : x(0), y(0), num(0) {}
+        TBuilding(int x, int y, int num) : x(x), y(y), num(num) {}
+        bool operator<(const TBuilding& rhs) const 
+        {
+            if (x == rhs.x)
+                return y < rhs.y;
+            if (y == rhs.y)
+                return x < rhs.x;
+            return (x < rhs.x && y < rhs.y);
+        }
+    };
 
     WorldMap();
     ~WorldMap();
 
-    int draw(int x, int y, int mypic);
+    void draw(int x, int y, int mypic);
     int load(const char *earthname, const char *surfacename, const char *buildingname,
             const char *buildxname, const char *buildyname);
     int unload();
     int get(int x, int y, BuildingType flag);
     int set(short x, short y, BuildingType flag, short v);
-    int sortBuildings(short x, short y, short mypic, int screen_w, int screen_h, 
+    void sortBuildings(short x, short y, short mypic, int screen_w, int screen_h, 
         int extra_x, int extra_y, int x_scale, int y_scale);
     size_t coord2Index(int x, int y);
 
 private:
-    TBuilding buildings[kMaxBuildings];
-    //MemoryBlock earthLayerData;
-    //MemoryBlock surfaceLayerData;
-    //MemoryBlock buildingLayerData;
-    //MemoryBlock buildxLayerData;
-    //MemoryBlock buildyLayerData;
+    std::list<TBuilding> _sortedBuildings;
     std::auto_ptr<MemoryBlock> _earthLayerData;
     std::auto_ptr<MemoryBlock> _surfaceLayerData;
     std::auto_ptr<MemoryBlock> _buildingLayerData;

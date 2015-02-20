@@ -5,6 +5,7 @@ Remake of the classic RPG Game Heros Of Jinyong
 */
 
 #include <memory>
+#include <SDL.h>
 #include "audio.h"
 #include "video.h"
 #include "script.h"
@@ -48,15 +49,12 @@ public:
 
 GameIniter::GameIniter()
 {
-    if (Init_Cache()) {
-        throw GameException("Init_Cache() failed.");
-    }
-    JY_PicInit();
+    ImageCache_Init();
 }
 
 GameIniter::~GameIniter()
 {
-    JY_PicInit();
+    ImageCache_Quit();
     JY_UnloadMMap();
     JY_UnloadSMap();
     JY_UnloadWarMap();
@@ -93,6 +91,7 @@ int ScriptIniter::loadAndRun(const char *filename)
 //========================================================================================
 
 
+#if 1
 int main(int argc, char *argv[])
 {
     try {
@@ -103,9 +102,75 @@ int main(int argc, char *argv[])
         jy::ScriptIniter  script;
         script.loadAndRun("script/main.lua");
     }
-    catch (const SDLException& e) {
-        DLOG(e.what());
+    catch (const std::exception& e) {
+        Log(e.what());
     }
 	return 0;
 }
 
+#else
+
+int x = 1;
+int y = 1;
+
+
+enum ScreenState {
+    ssNormal,
+    ssFadingOut,
+    ssFadingIn
+};
+
+
+ScreenState ss;
+
+
+void MoveEveryOne()
+{
+}
+
+
+void RenderScreen()
+{
+    JY_DrawMMap(480, 0, 1);
+    Video_UpdateScreen();
+}
+
+
+void GameLoop(void)
+{
+    SDL_Event event;
+    while (true) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                return;
+            }
+        }
+        MoveEveryOne();
+        RenderScreen();
+        SDL_Delay(33);
+    }
+}
+
+
+int main(int argc, char *argv[])
+{
+    try {
+        jy::Sdl2Initer sdl2;
+        std::auto_ptr<Video> video(Video::getInstance());
+        jy::GameIniter game;
+        JY_LoadMMap("data/earth.002",
+                "data/surface.002",
+                "data/building.002",
+                "data/buildx.002",
+                "data/buildy.002");
+        JY_PicLoadFile("data/mmap.idx", "data/mmap.grp", 0);
+        JY_PicLoadFile("data/hdgrp.idx", "data/hdgrp.grp", 1);
+        GameLoop();
+    }
+    catch (const std::exception& e) {
+        Log(e.what());
+    }
+    return 0;
+}
+
+#endif

@@ -71,13 +71,13 @@ def build(ctx):
             cwd + "/rvoice",
             cwd + "/synth",
             cwd + "/myglib",
-            cwd + "/../../../../sdk/include",
+            cwd + "/../../../../sdk/glib-2.0/include",
             ]
     ctx.stlib(
             source = src_files, 
             target = "fluidsynth", 
             name = "fluidsynth",
-            libpath = cwd + "/../../../sdk/lib",
+            libpath = cwd + "/../../../sdk/glib-2.0/lib",
             cflags = "-O2",
             defines = defines,
             includes = include_paths,

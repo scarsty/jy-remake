@@ -10,6 +10,7 @@ import os, string, os.path
 top = "."
 out = "waf-build"
 
+
 def options(ctx):
     ctx.load("gcc gxx winres")
 
@@ -19,7 +20,6 @@ def configure(ctx):
 
 
 def build(ctx):
-    cwd = ctx.path.abspath()
     src_files = """
         jyres.rc
         mainmap.cpp
@@ -29,23 +29,50 @@ def build(ctx):
         util.cpp
         lodepng.cpp
         image.cpp
-        audio_sdl.cpp
-        video_sdl2.cpp
-        input_sdl.cpp
-        sdlxx.cpp
         font.cpp
     """
+
+    sdkpath = ctx.env.SDK_PATH
     library_paths = [
-        cwd + "/../sdk/lib",
+        sdkpath + "/glib-2.0/lib",
+        sdkpath + "/lua/lib",
+        ctx.env.SDL_LIB_PATH,
     ]
+
+    proot = ctx.env.PROJECT_ROOT
     include_paths = [
-        cwd + "/../sdk/include",
-        cwd + "/libzaudio",
-        cwd + "/libfluidsynth/include",
+        sdkpath + "/lua/include",
+        proot + "/source/libzaudio",
+        proot + "/source/libfluidsynth/include",
+        ctx.env.SDL_INCLUDE_PATH,
     ]
-    install_path = cwd + "/../release"
-    shared_libs = "wsock32 glib-2.0.dll gthread-2.0.dll SDL2main SDL2"
+    defines = [
+        "HAVE_VSNPRINTF",
+    ]
+    install_path = ctx.env.INSTALL_PATH
+    shared_libs = "wsock32 glib-2.0.dll gthread-2.0.dll"
     static_libs = "mingw32 lua"
+
+    if ctx.env.SDL_VERSION == "1.2":
+        src_files += """
+            audio_null.cpp
+            video_sdl.cpp
+            input_sdl.cpp
+        """
+        shared_libs += """
+            SDLmain
+            SDL
+        """
+    elif ctx.env.SDL_VERSION == "2.0":
+        src_files += """
+            audio_sdl2.cpp
+            video_sdl2.cpp
+            input_sdl2.cpp
+        """
+        shared_libs += """
+            SDL2main
+            SDL2
+        """
     ctx.recurse(["libzaudio"])
     ctx(
         rule = "copy ${SRC} ${TGT}",
@@ -54,14 +81,15 @@ def build(ctx):
         install_path = install_path + "/script"
     )
     ctx.program(
-        source = src_files, 
+        source = src_files.split(),
         target = "legend", 
         libpath = library_paths,
         linkflags = "-mwindows",
         cxxflags = "-O2",
+        defines = defines,
         lib = shared_libs,
         stlib = static_libs,
         includes = include_paths,
         install_path = install_path,
-        use = ["zaudio", "sdlfont"],
+        use = ["zaudio"]
     )

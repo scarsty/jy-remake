@@ -1,21 +1,19 @@
+--[[
+------------------------------------------------------------------------------------------
 
-----------------------------------------------------------
------------金庸群侠传复刻之Lua版----------------------------
+金庸群侠传复刻版
+================
 
---版权所无，敬请复制
---您可以随意使用代码
+版权所无，敬请复制。
+您可以随意使用代码。
 
----本代码由游泳的鱼编写
+贡献者
+======
+ * 游泳的鱼 - 编写原始代码
+ * 西乐辛巴 - 代码修改成现在这样
 
---本模块是lua主模块，由C主程序JYLua.exe调用。C程序主要提供游戏需要的视频、音乐、键盘等API函数，供lua调用。
---游戏的所有逻辑都在lua代码中，以方便大家对代码的修改。
---为加快速度，显示主地图/场景地图/战斗地图部分用C API实现。
-
---导入其他模块。之所以做成函数是为了避免编译查错时编译器会寻找这些模块。
---
--- 配置文件
--- 为了简化处理，配置文件也用lua编写
--- 保存C程序读取的参数和lua程序中需要经常调整的参数。lua的其他参数仍然放在jyconst.lua中
+------------------------------------------------------------------------------------------
+--]]
 
 ----------------------------------------------------------------------------------------------------
 -- config.lua
@@ -23,35 +21,8 @@
 
 CONFIG={}
 
-CONFIG.screen_width  	= 320       -- 游戏图形宽
-CONFIG.screen_height 	= 200       -- 游戏图形宽
-CONFIG.sound_enabled 	= true      -- 是否打开声音
-CONFIG.music_enabled 	= true
-CONFIG.key_latency 		= 30        -- 第一次键盘重复等待ms数
-CONFIG.key_repeat_interval = 50  	-- 一秒钟重复次数
-
---设置各个数据文件的路径，如果是其他目录标志和windows不同的OS, 如linux，则改为合适的路径
-
-CONFIG.DataPath			= "data/"
 CONFIG.os_charset		= 0      -- 显示字符集 0 简体 1 繁体
-
-local large_memory_mode = true             --设置内存使用方式 1 多使用内存，0 少使用内存
-if large_memory_mode then
-     --贴图缓存数量，一般500-1000。如果在debug.txt中经常出现"pic cache is full"，可以适当增加
-    CONFIG.MAXCacheNum=1000
-	CONFIG.gc_enabled = false         --场景切换时是否清理lua内存。0 不清理 1 清理
-	CONFIG.LoadFullS=1           --1 整个S*文件载入内存 0 只载入当前场景，由于S*有4M多，这样可以节约很多内存
-	CONFIG.LoadMMapType=0        --加载主地图文件(5个002文件)的类型  0 全部载入 1 载入主角附近的行 2 载入主角附近的行和列
-	                              --类型2占用内存最少，但是在手机等设备上载入时间较长，在主角走动时会卡一下
-								  --类型1占用内存较多，载入时间比2要少，一般不会有卡的感觉
-	CONFIG.PreLoadPicGrp=1       --1 预加载贴图文件*.grp, 0 不预加载。预加载可以避免走路偶尔停顿和战斗出招停顿。但占用内存
-else
-    CONFIG.MAXCacheNum=500
-	CONFIG.gc_enabled = true
-	CONFIG.LoadFullS=0
-	CONFIG.LoadMMapType=1
-	CONFIG.PreLoadPicGrp=0
-end
+CONFIG.DataPath         = lib.GetDataPath()
 
 ----------------------------------------------------------------------------------------------------
 -- End of config.lua
@@ -65,58 +36,23 @@ end
 
 --设置全局变量CC，保存游戏中使用的常数
 function SetGlobalConst()
-	-- SDL 键码定义，这里名字仍然使用directx的名字
---[[
--- 这些值适用于 SDL 1.2 版本
-	VK_ESCAPE=27
-	VK_Y=121
-	VK_N=110
-	VK_SPACE=32
-	VK_RETURN=13
-
-	SDLK_UP=273
-	SDLK_DOWN=274
-	SDLK_LEFT=276
-	SDLK_RIGHT=275
-
-	VK_UP=SDLK_UP
-	VK_DOWN=SDLK_DOWN
-	VK_LEFT=SDLK_LEFT
-	VK_RIGHT=SDLK_RIGHT
---]]
-    VK_ESCAPE=27
-    VK_Y=121
-	VK_N=110
-	VK_SPACE=32
-	VK_RETURN=13
-
-	--[[
-	SDLK_UP=273
-	SDLK_DOWN=274
-	SDLK_LEFT=276
-	SDLK_RIGHT=275
-	--]]
-	SDLK_UP = 1073741906
-	SDLK_DOWN = 1073741905 
-	SDLK_LEFT = 1073741904
-	SDLK_RIGHT = 1073741903
-
-
-	VK_UP=SDLK_UP
-	VK_DOWN=SDLK_DOWN
-	VK_LEFT=SDLK_LEFT
-	VK_RIGHT=SDLK_RIGHT
+    VK_ESCAPE = "menu"
+    VK_ACTION = "action"
+    VK_UP     = "up"
+    VK_DOWN   = "down"
+    VK_LEFT   = "left"
+    VK_RIGHT  = "right"
+    VK_NULL   = "null"
+    VK_QUIT   = "quit"
 
 	-- 游戏中颜色定义
 	C_STARTMENU=RGB(132, 0, 4)            -- 开始菜单颜色
 	C_RED=RGB(216, 20, 24)                -- 开始菜单选中项颜色
 	C_GRAY=RGB(128,128,128)
-
 	C_WHITE=RGB(236, 236, 236)           --游戏内常用的几个颜色值
 	C_ORANGE=RGB(252, 148, 16)
 	C_GOLD=RGB(236, 200, 40)
 	C_BLACK=RGB(0,0,0)
-
 
 	-- 游戏状态定义
 	GAME_STATUS_START = 0       --开始画面
@@ -142,8 +78,8 @@ function SetGlobalConst()
 	CC.OSCharSet=CONFIG.os_charset       --OS 字符集，0 GB, 1 Big5
 	CC.FontName=""  -- 字体
 
-	CC.ScreenW=CONFIG.screen_width          --显示窗口宽高
-	CC.ScreenH=CONFIG.screen_height
+    -- 必须与C++代码中的值保持一致，必须用GetScreenSize()获得
+    CC.ScreenW, CC.ScreenH = lib.GetScreenSize()
 
 	--定义记录文件名。S和D由于是固定大小，因此不再定义idx了。
 	CC.R_IDXFilename={[0]=CONFIG.DataPath .. "ranger.idx",
@@ -158,19 +94,13 @@ function SetGlobalConst()
 	CONFIG.DataPath .. "s1.grp",
 	CONFIG.DataPath .. "s2.grp",
 	CONFIG.DataPath .. "s3.grp",}
-
 	CC.TempS_Filename=CONFIG.DataPath .. "allsinbk.grp"
-
 	CC.D_Filename={[0]=CONFIG.DataPath .. "alldef.grp",
 	CONFIG.DataPath .. "d1.grp",
 	CONFIG.DataPath .. "d2.grp",
 	CONFIG.DataPath .. "d3.grp",}
-
-	CC.PaletteFile=CONFIG.DataPath .. "mmap.col"
-
 	CC.OpeningBitmapFile = CONFIG.DataPath .. "title.png"
 	CC.DeathBitmapFile = CONFIG.DataPath .. "dead.png"
-
 	CC.MMapFile={CONFIG.DataPath .. "earth.002",
 	CONFIG.DataPath .. "surface.002",
 	CONFIG.DataPath .. "building.002",
@@ -187,7 +117,6 @@ function SetGlobalConst()
 	CC.HeadPicFile={CONFIG.DataPath .. "hdgrp.idx",CONFIG.DataPath .. "hdgrp.grp"}
 	CC.ThingPicFile={CONFIG.DataPath .. "thing.idx",CONFIG.DataPath .. "thing.grp"}
 
-
 	CC.MIDIFile=CONFIG.DataPath .. "game%02d.mid"
 	CC.ATKFile=CONFIG.DataPath .. "atk%02d.wav"
 	CC.EFile=CONFIG.DataPath .. "e%02d.wav"
@@ -196,12 +125,11 @@ function SetGlobalConst()
 	CC.WarMapFile={CONFIG.DataPath .. "warfld.idx",
 	CONFIG.DataPath .. "warfld.grp"}
 
-	CC.TalkIdxFile=CONFIG.DataPath .. "oldtalk.idx"
-	CC.TalkGrpFile=CONFIG.DataPath .. "oldtalk.grp"
+    CC.TALK_FILE = CONFIG.DataPath .. "oldtalk"
 
 	--定义记录文件R×结构。  lua不支持结构，无法直接从二进制文件中读取，因此需要这些定义，用table中不同的名字来仿真结构。
-	CC.TeamNum=6          --队伍人数
-	CC.MyThingNum=200      --主角物品数量
+	CC.MAX_TEAMATES=6          --队伍人数
+	CC.MAX_PLAYER_ITEMS=200      --主角物品数量
 
 	CC.Base_S={}         --保存基本数据的结构，以便以后存取
 	CC.Base_S["乘船"]={0,0,2}   -- 起始位置(从0开始)，数据类型(0有符号 1无符号，2字符串)，长度
@@ -217,11 +145,11 @@ function SetGlobalConst()
 	CC.Base_S["船Y1"]={20,0,2}
 	CC.Base_S["船方向"]={22,0,2}
 
-	for i=1,CC.TeamNum do
+	for i=1,CC.MAX_TEAMATES do
 		CC.Base_S["队伍" .. i]={24+2*(i-1),0,2}
 	end
 
-	for i=1,CC.MyThingNum do
+	for i=1,CC.MAX_PLAYER_ITEMS do
 		CC.Base_S["物品" .. i]={36+4*(i-1),0,2}
 		CC.Base_S["物品数量" .. i]={36+4*(i-1)+2,0,2}
 	end
@@ -424,10 +352,10 @@ function SetGlobalConst()
 	CC.ShopScene[4]={sceneid=61,d_shop=9,d_leave={10,11,12}, }
 
 	--其他常量
-	CC.MWidth=480       --主地图宽
-	CC.MHeight=480      --主地图高
+	CC.MWidth=480       --主地图宽，以tile为单位
+	CC.MHeight=480      --主地图高，以tile为单位
 
-	CC.SWidth=64     --子场景地图大小
+	CC.SWidth=64     --子场景地图大小，以tile为单位
 	CC.SHeight=64
 
 	CC.DNum=200       --D*每个场景的事件数
@@ -630,73 +558,6 @@ function SetGlobalConst()
 	CC.SceneXMax = 45
 	CC.SceneYMax = 45
 
-	--[[
-	--场景视角范围。超出此范围则只移动主角，场景不移动了。也就是主角不在屏幕中央了
-	if CONFIG.Type==0 then      --320*240显示方式
-	CC.SceneXMin=12
-	CC.SceneYMin=12
-	CC.SceneXMax=45
-	CC.SceneYMax=45
-	elseif CONFIG.Type==1 then
-	CC.SceneXMin=11
-	CC.SceneYMin=11
-	CC.SceneXMax=47
-	CC.SceneYMax=47
-	end
-	--]]
-
-	--[[
-	------------------------以下为物品菜单参数
-	if CONFIG.Type==0 then
-	CC.ThingFontSize = 16
-
-	CC.ThingPicWidth=40    --物品图片宽高
-	CC.ThingPicHeight=40
-
-	CC.MenuThingXnum=5      --一行显示几个物品
-	CC.MenuThingYnum=3      --物品显示几列
-
-	CC.ThingGapOut=10      --物品图像显示四周留白
-	CC.ThingGapIn=5        --物品图像显示中间间隔
-
-	elseif CONFIG.Type==1 then
-
-	CC.ThingFontSize = 28  --
-
-	CC.ThingPicWidth=40    --物品图片宽高
-	CC.ThingPicHeight=40
-
-	CC.MenuThingXnum=10      --一行显示几个物品
-	CC.MenuThingYnum=5      --物品显示几列
-
-	CC.ThingGapOut=10      --物品图像显示四周留白
-	CC.ThingGapIn=10        --物品图像显示中间间隔
-	end
-
-	--]]
-	--[[
-	if CONFIG.Type==0 then      --320*240显示方式
-	CC.DefaultFontSize=16
-	CC.StartMenuFontSize=16  --开始菜单字号
-	CC.NewGameFontSize =16   --新游戏属性选择字号
-	CC.MainMenuX=10         --主菜单开始坐标
-	CC.MainMenuY=10
-	CC.GameOverX=90
-	CC.GameOverY=65
-	CC.PersonStateRowPixel= 1    --显示人物状态行间距像素
-
-	elseif CONFIG.Type==1 then  --640*480显示方式
-	CC.DefaultFontSize=28
-	CC.StartMenuFontSize=36
-	CC.NewGameFontSize =28
-	CC.MainMenuX=10
-	CC.MainMenuY=10
-	CC.GameOverX=255
-	CC.GameOverY=165
-	CC.PersonStateRowPixel= 4  --显示人物状态行间距像素
-	end
-	--]]
-
 	--子菜单的开始坐标
 	CC.MainSubMenuX=CC.MainMenuX+2*CC.MenuBorderPixel+2*CC.DefaultFontSize+5       --主菜单为两个汉字
 	CC.MainSubMenuY=CC.MainMenuY
@@ -707,10 +568,6 @@ function SetGlobalConst()
 	CC.SceneFlagPic={2749,2846}    --场景贴图中旗帜的贴图编号。
 	CC.ShowFlag=1               --0 不显示旗帜动画 1 显示。不显示旗帜动画可以增加场景中主角不动时的显示速度
 	CC.AutoWarShowHead=0		--1 战斗时一直显示头像 0 不显示。如果设为1，则战斗时将重绘整个屏幕，会降低显示速度。
-	CC.LoadThingPic=1           --读取物品贴图方式 0 从mmap/smap/wmap中读取  1 读取独立的thing.idx/grp
-	CC.StartThingPic=0          --物品贴图在mmap/smap/wmap中的起始编号。CC.LoadThingPic=0有效
-
-
 end
 ----------------------------------------------------------------------------------------------------
 -- end of jyconst.lua
@@ -720,245 +577,8 @@ end
 -- jymodify.lua
 ----------------------------------------------------------------------------------------------------
 
-
-
-
----本模块存放对JYMain.lua 的修改和扩充。
-
---尽量把新增加模块放在这里，少修改原始JYMain.Lua文件。
---这里一般包括以下几个部分
---1. SetModify函数。   该函数在游戏开始时调用，可以在此修改原有的数据，以及重定义原有的函数，以实现对原有函数的修改、
---                    这样就可以基本不动原始的函数
---2. 原有函数的重载函数。 SetModify中重载的函数放在此处。尽量不修改JYMain.lua文件，对它的修改采用重定义函数的形式。
---3. 新的物品使用函数。
---4. 新的场景事件函数。
-
-
-
-
-
---对jymain的修改，以及增加新的物品函数和场景事件函数。
---注意这里可以定义全程变量。
-function SetModify()
-
-   --这是一个定义函数的例子。这里重新修改主菜单中的系统菜单，增加在游戏运行中控制音效的功能。
-   --原来只能在jyconst.lua中通过参数在运行前控制，不能做到实时控制。
-   --Menu_System_old=Menu_System;         --备份原始函数，如果新的函数需要，还可以调用原始函数。
-   --Menu_System=Menu_System_new;
-
-   --在此定义特殊物品。没有定义的均调用缺省物品函数
-    JY.ThingUseFunction[182]=Show_Position;     --罗盘函数
-	JY.ThingUseFunction[0]=newThing_0;   --改变原来康贝特的功能为醉生梦死酒忘记武功。
-	JY.ThingUseFunction[2]=newThing_2;
-end
-
-
---新的系统子菜单，增加控制音乐和音效
-function Menu_System_new()
-	local menu={
-		 {"读取进度",Menu_ReadRecord,1},
-		 {"保存进度",Menu_SaveRecord,1},
-		 {"关闭音乐",Menu_SetMusic,1},
-		 {"关闭音效",Menu_SetSound,1},
-		 -- We don't need this!
-		 --{"全屏切换",Menu_FullScreen,1},
-		 {"离开游戏",Menu_Exit,1},   
-	 };
-
-    if not JY.music_enabled then
-	    menu[3][1]="打开音乐";
-	end
-
-	if not JY.sound_enabled then
-	    menu[4][1]="打开音效";
-    end
-
-
-    local r=ShowVerticalMenu(menu,6,0,CC.MainSubMenuX,CC.MainSubMenuY,0,0,1,1,CC.DefaultFontSize,C_ORANGE, C_WHITE);
-    if r == 0 then
-        return 0;
-    elseif r<0 then   --要退出全部菜单，
-        return 1;
- 	end
-end
-
---[[
-function Menu_FullScreen()
-    lib.FullScreen();
-	lib.Log("finish fullscreen");
-end
---]]
-
-function Menu_SetMusic()
-    if not JY.music_enabled then
-	    JY.music_enabled = true
-		PlayMIDI(JY.CurrentMIDI);
-	else
-	    JY.music_enabled = false
-		lib.PlayMIDI("");
-	end
-	return 1;
-end
-
-function Menu_SetSound()
-    if not JY.sound_enabled then
-	    JY.sound_enabled = true
-	else
-	    JY.sound_enabled = false
-	end
-	return 1;
-end
-
-
 ----------------------------------------------------------------
 ---------------------------物品使用函数--------------------------
-
-
---罗盘函数，显示主地图主角位置
-function Show_Position()
-    if JY.Status ~=GAME_STATUS_MAINMAP then
-        return 0;
-    end
-    DrawStrBoxWaitKey(string.format("当前位置(%d,%d)",JY.base["人X"],JY.base["人Y"]),C_ORANGE,CC.DefaultFontSize);
-	return 1;
-end
-
-
---醉生梦死酒。喝后可以忘掉一种武功
-function newThing_0(id)
-    if JY.Status ==GAME_STATUS_WARMAP then
-	    return 0;
-	end
-
-    Cls();
-    if DrawStrBoxYesNo(-1,-1,"喝后会忘记武功，但损害生命，是否继续?",C_WHITE,CC.DefaultFontSize,1) == false then
-        return 0;
-    end
-    Cls();
-    DrawStrBox(CC.MainSubMenuX,CC.MainSubMenuY,string.format("谁要服用%s?",JY.items[id]["名称"]),C_WHITE,CC.DefaultFontSize,1);
-	local nexty=CC.MainSubMenuY+CC.SingleLineHeight;
-    local r=SelectTeamateInMenu(CC.MainSubMenuX,nexty);
-    if r<=0 then
-	    return 0;
-	end
-
-	local pid=JY.base["队伍" .. r];
-
-	if JY.roles[pid]["生命最大值"]<=50 then
-	    return 0;
-	end
-
-	Cls();
-    local numwugong=0;
-    local menu={};
-    for i=1,10 do
-        local tmp=JY.roles[pid]["武功" .. i];
-        if tmp>0 then
-            menu[i]={JY.kongfus[tmp]["名称"],nil,1};
-            numwugong=numwugong+1;
-        end
-    end
-
-    if numwugong==0 then
-        return 0;
-    end
-
-    DrawStrBox(CC.MainSubMenuX,CC.MainSubMenuY,string.format("请选择要忘记的武功"),C_WHITE,CC.DefaultFontSize,1);
-
-	r=ShowVerticalMenu(menu,numwugong,0,CC.MainSubMenuX,nexty,0,0,1,1,CC.DefaultFontSize,C_ORANGE,C_WHITE);
-
-    if r<=0 then
-	    return 0;
-    else
-        local s=string.format("%s 忘记武功 %s",JY.roles[pid]["姓名"],JY.kongfus[JY.roles[pid]["武功" .. r]]["名称"]);
-		DrawStrBoxWaitKey(s,C_WHITE, CC.DefaultFontSize);
-
-		for i=r+1,10 do
-		    JY.roles[pid]["武功" .. i-1]=JY.roles[pid]["武功" .. i];
-		    JY.roles[pid]["武功等级" .. i-1]=JY.roles[pid]["武功等级" .. i];
-		end
-
-		local v,str=AddPersonAttrib(pid,"生命最大值",-50);
-
-	    DrawStrBoxWaitKey(str,C_WHITE,CC.DefaultFontSize);
-        AddPersonAttrib(pid,"生命",0);
-
-        instruct_32(id,-1);
-	end
-    Cls();
-	return 1;
-end
-
-
---还魂液，战斗时可以使一个死亡的队友复活，各项机能恢复50%
-function newThing_2(thingid)
-    if JY.Status ~=GAME_STATUS_WARMAP then
-	    return 0;
-	end
-
-	local menu={};
-    local menunum=0;
-    for i=0,WAR.PersonNum-1 do
-	    menu[i+1]={JY.roles[WAR.roles[i]["人物编号"]]["姓名"],nil,0}
-        if WAR.roles[i]["我方"]==true and WAR.roles[i]["死亡"]==true then
-            menu[i+1][3]=1;
-			menunum=menunum+1;
-        end
-    end
-
-	if menunum==0 then
-	    return 0;
-	end
-
-	Cls();
-    DrawStrBox(CC.MainSubMenuX,CC.MainSubMenuY,string.format("请选择要复活的队友"),C_WHITE,CC.DefaultFontSize);
-	local nexty=CC.MainSubMenuY+CC.SingleLineHeight;
-    local r=ShowVerticalMenu(menu,WAR.PersonNum,0,CC.MainSubMenuX,nexty,0,0,1,1,CC.DefaultFontSize,C_ORANGE,C_WHITE);
-    Cls();
-    if r>0 then
-	    r=r-1;           --菜单返回值是从1开始编号的。
-		WAR.roles[r]["死亡"]=false;
-        local pid=WAR.roles[r]["人物编号"];
-        JY.roles[pid]["生命"]=JY.roles[pid]["生命最大值"];
-        SetRevivePosition(r);
-        instruct_32(thingid,-1);
-        WarSetPerson();        --重新设定战斗位置
-	    return 1;
-	else
-	    return 0;
-	end
-end
-
---设置复活队友的位置为距离当前使用物品的战斗人物最近的空位
-function  SetRevivePosition(id)
-	local minDest=math.huge;
-	local x,y;
-	War_CalMoveStep(WAR.CurID,100,0);   --计算移动步数 假设最大100步
-	for i=0,CC.WarWidth-1 do
-		for j=0,CC.WarHeight-1 do
-			local dest=Byte.get16(WAR.Map3,(j*CC.WarWidth+i)*2);
-			if dest>0 and dest <128 then
-				if minDest>dest then
-					minDest=dest;
-					x=i;
-					y=j;
-				 elseif minDest==dest  then
-					 if Random(2)==0 then
-						x=i;
-						y=j;
-					end
-				end
-			end
-		end
-	end
-
-	if minDest<math.huge then
-        WAR.roles[id]["坐标X"]=x;
-        WAR.roles[id]["坐标Y"]=y;
-	end
-
-end
-
 
 
 ----------------------------------------------------------------------------------------------------
@@ -1014,34 +634,38 @@ function GetVerticalMenuSize(menu)
 	return cx, cy
 end
 
---通用菜单函数
--- menuItem 表，每项保存一个子表，内容为一个菜单项的定义
---          菜单项定义为  {   ItemName,     菜单项名称字符串
---                          ItemFunction, 菜单调用函数，如果没有则为nil
---                          Visible       是否可见  0 不可见 1 可见, 2 可见，作为当前选择项。只能有一个为2，
---                                        多了则只取第一个为2的，没有则第一个菜单项为当前选择项。
---                                        在只显示部分菜单的情况下此值无效。
---                                        此值目前只用于是否菜单缺省显示否的情况
---                       }
---          菜单调用函数说明：         itemfunction(newmenu,id)
---
---       返回值
---              0 正常返回，继续菜单循环 1 调用函数要求退出菜单，不进行菜单循环
---
--- numItem      总菜单项个数
--- numShow      显示菜单项目，如果总菜单项很多，一屏显示不下，则可以定义此值
---                =0表示显示全部菜单项
+--[[
+==========================================================================================
+通用菜单函数
+ menuItem 表，每项保存一个子表，内容为一个菜单项的定义
+          菜单项定义为  {   ItemName,     菜单项名称字符串
+                          ItemFunction, 菜单调用函数，如果没有则为nil
+                          Visible       是否可见  0 不可见 1 可见, 2 可见，作为当前选择项。只能有一个为2，
+                                        多了则只取第一个为2的，没有则第一个菜单项为当前选择项。
+                                        在只显示部分菜单的情况下此值无效。
+                                        此值目前只用于是否菜单缺省显示否的情况
+                       }
+          菜单调用函数说明：         itemfunction(newmenu,id)
 
--- (x1,y1),(x2,y2)  菜单区域的左上角和右下角坐标，如果x2,y2=0,则根据字符串长度和显示菜单项自动计算x2,y2
--- isBox        是否绘制边框，0 不绘制，1 绘制。若绘制，则按照(x1,y1,x2,y2)的矩形绘制白色方框，并使方框内背景变暗
--- isEsc        Esc键是否起作用 0 不起作用，1起作用
--- Size         菜单项字体大小
--- color        正常菜单项颜色，均为RGB
--- selectColor  选中菜单项颜色,
---
--- 返回值  0 Esc返回
---         >0 选中的菜单项(1表示第一项)
---         <0 选中的菜单项，调用函数要求退出父菜单，这个用于退出多层菜单
+       返回值
+              0 正常返回，继续菜单循环 1 调用函数要求退出菜单，不进行菜单循环
+
+ numItem      总菜单项个数
+ numShow      显示菜单项目，如果总菜单项很多，一屏显示不下，则可以定义此值
+                =0表示显示全部菜单项
+
+ (x1,y1),(x2,y2)  菜单区域的左上角和右下角坐标，如果x2,y2=0,则根据字符串长度和显示菜单项自动计算x2,y2
+ isBox        是否绘制边框，0 不绘制，1 绘制。若绘制，则按照(x1,y1,x2,y2)的矩形绘制白色方框，并使方框内背景变暗
+ isEsc        Esc键是否起作用 0 不起作用，1起作用
+ Size         菜单项字体大小
+ color        正常菜单项颜色，均为RGB
+ selectColor  选中菜单项颜色,
+
+ 返回值  0 Esc返回
+         >0 选中的菜单项(1表示第一项)
+         <0 选中的菜单项，调用函数要求退出父菜单，这个用于退出多层菜单
+==========================================================================================
+--]]
 
 function ShowVerticalMenu(menuItem,numItem,numShow,x1,y1,x2,y2,isBox,isEsc,fontSize,color,selectColor)     --通用菜单函数
 	local w=0
@@ -1050,7 +674,6 @@ function ShowVerticalMenu(menuItem,numItem,numShow,x1,y1,x2,y2,isBox,isEsc,fontS
 	local num=0     --实际的显示菜单项
 	local newNumItem=0  --能够显示的总菜单项数
 
-	--lib.GetKey()
 	ClearKeyBuffer()
 
 	local newMenu={}   -- 定义新的数组，以保存所有能显示的菜单项
@@ -1097,7 +720,7 @@ function ShowVerticalMenu(menuItem,numItem,numShow,x1,y1,x2,y2,isBox,isEsc,fontS
 		current=1
 	end
 
-	local keyPress =-1
+	local keypress =-1
 	local returnValue =0
 
 	--	if isBox==1 then
@@ -1119,13 +742,13 @@ function ShowVerticalMenu(menuItem,numItem,numShow,x1,y1,x2,y2,isBox,isEsc,fontS
 			newMenu[i][1],drawColor,fontSize)
 		end
 		UpdateScreen()
-		keyPress=WaitKey()
+		keypress=WaitKey()
 		lib.Delay(100)
-		if keyPress==VK_ESCAPE then                  --Esc 退出
+		if keypress==VK_ESCAPE then                  --Esc 退出
 			if isEsc==1 then
 				break
 			end
-		elseif keyPress==VK_DOWN then                --Down
+		elseif keypress==VK_DOWN then                --Down
 			current = current +1
 			if current > (start + num-1) then
 				start=start+1
@@ -1134,7 +757,7 @@ function ShowVerticalMenu(menuItem,numItem,numShow,x1,y1,x2,y2,isBox,isEsc,fontS
 				start=1
 				current =1
 			end
-		elseif keyPress==VK_UP then                  --Up
+		elseif keypress==VK_UP then                  --Up
 			current = current -1
 			if current < start then
 				start=start-1
@@ -1143,8 +766,8 @@ function ShowVerticalMenu(menuItem,numItem,numShow,x1,y1,x2,y2,isBox,isEsc,fontS
 				current = newNumItem
 				start =current-num+1
 			end
-		elseif (keyPress==VK_SPACE) or (keyPress==VK_RETURN)  then
-			if newMenu[current][2]==nil then
+		elseif keypress==VK_ACTION then
+			if not newMenu[current][2] then
 				returnValue=newMenu[current][4]
 				lib.Log(string.format("no func: current = %s, ret = %d", current, returnValue))
 				break
@@ -1205,13 +828,14 @@ function ShowVerticalMenu3(menu, x, y)     --通用菜单函数
 			if activeItem < 1 then
 				activeItem = numItems
 			end
-		elseif key == VK_RETURN or key == VK_SPACE and not menu[activeItem].disabled then
+		elseif key == VK_ACTION and not menu[activeItem].disabled then
 			if menu[activeItem].func then
 				local r = menu[activeItem].func(menu, activeItem)
 				if r == 1 then
 					ret = -activeItem
 					break
 				else
+					--Cls(r.x, r.y, r.x + r.cx, r.y + r.cy)
 					if menu.hasBorder then
 						local r = menuRect
 						DrawDialogBorder(r.x, r.y, r.x+r.cx, r.y+r.cy, menu.borderColor)
@@ -1225,7 +849,8 @@ function ShowVerticalMenu3(menu, x, y)     --通用菜单函数
 			break
 		end
 	end
-	Cls(menuRect.x, menuRect.y, menuRect.x+menuRect.cx, menuRect.y+menuRect.cy)
+	Cls(menuRect.x, menuRect.y, menuRect.x+menuRect.cx, 
+        menuRect.y+menuRect.cy)
 	return ret
 end
 
@@ -1238,7 +863,6 @@ function ShowHorizontalMenu(menuItem,numItem,numShow,x1,y1,x2,y2,isBox,isEsc,fon
 	local num=0     --实际的显示菜单项
 	local newNumItem=0  --能够显示的总菜单项数
 
-	--lib.GetKey()
 	ClearKeyBuffer()
 	local newMenu={}   -- 定义新的数组，以保存所有能显示的菜单项
 
@@ -1289,7 +913,7 @@ function ShowHorizontalMenu(menuItem,numItem,numShow,x1,y1,x2,y2,isBox,isEsc,fon
 		current=1
 	end
 
-	local keyPress =-1
+	local keypress =-1
 	local returnValue =0
 	if isBox==1 then
 		DrawDialogBorder(x1,y1,x1+w,y1+h,C_WHITE)
@@ -1318,14 +942,14 @@ function ShowHorizontalMenu(menuItem,numItem,numShow,x1,y1,x2,y2,isBox,isEsc,fon
 			y1+CC.MenuBorderPixel,newMenu[i][1],drawColor,fontSize)
 		end
 		UpdateScreen()
-		keyPress=WaitKey()
+		keypress=WaitKey()
 		lib.Delay(100)
 
-		if keyPress==VK_ESCAPE then                  --Esc 退出
+		if keypress==VK_ESCAPE then                  --Esc 退出
 			if isEsc==1 then
 				break
 			end
-		elseif keyPress==VK_RIGHT then                --Down
+		elseif keypress==VK_RIGHT then                --Down
 			current = current +1
 			if current > (start + num-1) then
 				start=start+1
@@ -1334,7 +958,7 @@ function ShowHorizontalMenu(menuItem,numItem,numShow,x1,y1,x2,y2,isBox,isEsc,fon
 				start=1
 				current =1
 			end
-		elseif keyPress==VK_LEFT then                  --Up
+		elseif keypress==VK_LEFT then                  --Up
 			current = current -1
 			if current < start then
 				start=start-1
@@ -1343,8 +967,8 @@ function ShowHorizontalMenu(menuItem,numItem,numShow,x1,y1,x2,y2,isBox,isEsc,fon
 				current = newNumItem
 				start =current-num+1
 			end
-		elseif   (keyPress==VK_SPACE) or (keyPress==VK_RETURN)  then
-			if newMenu[current][2]==nil then
+		elseif keypress==VK_ACTION then
+			if not newMenu[current][2] then
 				returnValue=newMenu[current][4]
 				break
 			else
@@ -1497,7 +1121,7 @@ end
 
 function GetTeamateMenu()
 	local menu = {}
-	for i=1, CC.TeamNum do
+	for i=1, CC.MAX_TEAMATES do
 		local id=JY.base["队伍" .. i]
 		if id>=0 and JY.roles[id]["生命"]>0 then
 			menu[i] = {JY.roles[id]["姓名"], nil, 1}
@@ -1516,9 +1140,7 @@ end
 
 function SetGlobal()   --设置游戏内部使用的全程变量
 	JY={}
-
 	JY.game_status=GAME_INIT  --游戏当前状态
-
 	--保存R×数据
 	JY.base={}           --基本数据
 	JY.num_roles=0      --人物个数
@@ -1539,49 +1161,37 @@ function SetGlobal()   --设置游戏内部使用的全程变量
 	JY.Data_Wugong=nil
 	JY.Data_Shop=nil
 
-	JY.MyCurrentPic=0       --主角当前走路贴图在贴图文件中偏移
+	JY.my_current_pic=0       --主角当前走路贴图在贴图文件中偏移
 	JY.MyPic=0              --主角当前贴图
-	JY.MyTick=0             --主角没有走路的持续帧数
-	JY.MyTick2=0            --显示事件动画的节拍
+	JY.my_tick=0             --主角没有走路的持续帧数
+	JY.my_tick_2=0            --显示事件动画的节拍
 
 	JY.EnterSceneXY=nil     --保存进入场景的坐标，有值可以进入，为nil则重新计算。
 
-	JY.old_mainmap_x=-1          --上次显示主地图的坐标。用来判断是否需要全部重绘屏幕
+    --上次显示主地图的坐标。用来判断是否需要全部重绘屏幕
+	JY.old_mainmap_x=-1
 	JY.old_mainmap_y=-1
 	JY.old_mainmap_pic=-1        --上次显示主地图主角贴图
-
 	JY.subscene=-1          --当前子场景编号
 	JY.subscene_x=0          --子场景显示位置偏移，场景移动指令使用
 	JY.subscene_y=0
-
 	JY.blacken_screen=false             -- false 屏幕正常显示，true 不显示，屏幕全黑
-
 	JY.CurrentD=-1          --当前调用D*的编号
 	JY.OldDPass=-1          --上次触发路过事件的D*编号, 避免多次触发
 	JY.CurrentEventType=-1   --当前触发事件的方式 1 空格 2 物品 3 路过
-
 	JY.old_scene_x=-1          --上次显示场景地图的坐标。用来判断是否需要全部重绘屏幕
 	JY.old_scene_y=-1
 	JY.old_scene_xoff=-1       --上次场景偏移
 	JY.old_scene_yoff=-1
 	JY.old_scene_pic=-1        --上次显示场景地图主角贴图
-
 	JY.D_Valid=nil           --记录当前场景有效的D的编号，提高速度，不用每次显示都计算了。若为nil则重新计算
 	JY_D_Valld_Num=0        --当前场景有效的D个数
-
 	JY.D_PicChange={}        --记录事件动画改变，以计算Clip
 	JY.NumD_PicChange=0     --事件动画改变的个数
-
 	JY.current_item=-1      --当前选择物品，触发事件使用
-
 	JY.mainmap_music=-1         --切换大地图音乐，返回主地图时，如果设置，则播放此音乐
-
 	JY.current_midi=-1       --当前播放的音乐id，用来在关闭音乐时保存音乐id。
-	JY.music_enabled = true        --是否播放音乐 1 播放，0 不播放
-	JY.sound_enabled = true        --是否播放音效 1 播放，0 不播放
-
 	JY.ThingUseFunction={}          --物品使用时调用函数，SetModify函数使用，增加新类型的物品
-
 	WAR={}     --战斗使用的全程变量。。这里占个位置，因为程序后面不允许定义全局变量了。具体内容在WarSetGlobal函数中
 end
 
@@ -1598,7 +1208,7 @@ function JY_Main_sub()        --真正的游戏主程序入口
 	SetGlobalConst()    --设置全程变量CC, 程序使用的常量
 	SetGlobal()         --设置全程变量JY
 	GenTalkIdx()        --生成对话idx
-	SetModify()         --设置对函数的修改，定义新的物品，事件等等
+	--SetModify()         --设置对函数的修改，定义新的物品，事件等等
 
 	--禁止访问全程变量
 	setmetatable(_G, { __newindex = function (_,n)
@@ -1609,12 +1219,9 @@ function JY_Main_sub()        --真正的游戏主程序入口
 		end }  
 	)
 	math.randomseed(os.time())          --初始化随机数发生器
-	lib.EnableKeyRepeat(CONFIG.key_latency, CONFIG.key_repeat_interval)   --设置键盘重复率
 	JY.game_status=GAME_STATUS_START
-	--lib.PicInit(CC.PaletteFile)       --加载原来的256色调色板
 
 	Cls()
-
 	PlayMIDI(16)
 	lib.FadeIn(50)
 
@@ -1641,7 +1248,7 @@ function JY_Main_sub()        --真正的游戏主程序入口
 		lib.FadeOut(50)
 		JY.game_status=GAME_STATUS_SCENE
 		JY.mainmap_music=-1
-		CollectGarbage()
+		CleanLuaGarbage()
 		InitScene(false)
 		if CC.NewGameEvent>0 then
 			oldCallEvent(CC.NewGameEvent)
@@ -1674,14 +1281,15 @@ function JY_Main_sub()        --真正的游戏主程序入口
 	end
 
 	ClearKeyBuffer()
+    -- 没有必要释放世界地图，所以在这里载入一次，直到游戏退出，都不会再释放了。
+    lib.LoadMMap(CC.MMapFile[1], CC.MMapFile[2], CC.MMapFile[3], 
+        CC.MMapFile[4], CC.MMapFile[5]) 
 	GameLoop()
 end
 
-function CollectGarbage()            --清理lua内存
-	if CONFIG.gc_enabled then
-		collectgarbage("collect")
-		--lib.Log(string.format("Lua memory=%d",collectgarbage("count")))
-	end
+function CleanLuaGarbage()            --清理lua内存
+    collectgarbage("collect")
+    --lib.Log(string.format("Lua memory=%d",collectgarbage("count")))
 end
 
 
@@ -1722,8 +1330,6 @@ end
 
 function CreateNewGame()     --选择新游戏，设置主角初始属性
 	LoadRecord(0) --  载入新游戏数据
-
-
 	while true do
         PlayerInit()
 		Cls()
@@ -1741,7 +1347,6 @@ function CreateNewGame()     --选择新游戏，设置主角初始属性
 			DrawText(x1+i*w+fontsize*2,y1,string.format("%3d ",JY.roles[0][str2]),C_WHITE,fontsize)
 			i = i + 1
 		end
-
 		DrawText(x1,y1,"这样的属性满意吗？",C_GOLD,fontsize)
 		i = 0
 		y1 = y1 + h
@@ -1752,9 +1357,7 @@ function CreateNewGame()     --选择新游戏，设置主角初始属性
 		i = 0
 		y1 = y1 + h
 		DrawAttrib("拳掌","拳掌功夫") DrawAttrib("御剑","御剑能力")  DrawAttrib("耍刀","耍刀技巧") DrawAttrib("暗器","暗器技巧")
-
 		UpdateScreen()
-
 		local menu =
 		{
 			{"是 ",nil,1},
@@ -1768,27 +1371,25 @@ function CreateNewGame()     --选择新游戏，设置主角初始属性
 end
 
 
-function GameLoop()       --游戏主循环
-	lib.Log("Start game cycle")
+function RunPlayerFrame()
+    JY.my_tick = JY.my_tick + 1
+    JY.my_tick_2 = JY.my_tick_2 + 1
+    if JY.my_tick==20 then
+        JY.my_current_pic=0
+        JY.my_tick=0
+    end
+    if JY.my_tick_2==1000 then
+        JY.my_tick_2=0
+    end
+end
 
+
+function GameLoop()       --游戏主循环
 	while JY.game_status ~= GAME_STATUS_END do
 		local start_time = lib.GetTime()
-
-		JY.MyTick=JY.MyTick+1    --20个节拍无击键，则主角变为站立状态
-		JY.MyTick2=JY.MyTick2+1    --20个节拍无击键，则主角变为站立状态
-
-		if JY.MyTick==20 then
-			JY.MyCurrentPic=0
-			JY.MyTick=0
-		end
-
-		if JY.MyTick2==1000 then
-			JY.MYtick2=0
-		end
-
-	  	--首次显示主场景，重新调用主场景贴图，渐变显示。然后转到正常显示
+	  	--首次显示主场景，重新调用主场景贴图，渐入。然后转到正常显示
 		if JY.game_status==GAME_STATUS_MAINMAP_INIT then
-			CollectGarbage()
+			CleanLuaGarbage()
 			lib.FadeOut(50)
 			JY.mainmap_music=16
 			JY.game_status=GAME_STATUS_MAINMAP
@@ -1800,11 +1401,8 @@ function GameLoop()       --游戏主循环
 		elseif JY.game_status==GAME_STATUS_SCENE then
 			RunSceneFrame()
 		end
-
 		collectgarbage("step",0)
-
 		local end_time = lib.GetTime()
-
 		if end_time - start_time < FRAME_INTERVAL then
 			lib.Delay(FRAME_INTERVAL - (end_time - start_time))
 		end
@@ -1813,16 +1411,10 @@ end
 
 
 function InitMainMap()   --初始化主地图数据
-	lib.PicInit()
-	--lib.LoadMMap(CC.MMapFile[1],CC.MMapFile[2],CC.MMapFile[3],
-	--CC.MMapFile[4],CC.MMapFile[5],CC.MWidth,CC.MHeight,JY.base["人X"],JY.base["人Y"])
-    lib.LoadMMap(CC.MMapFile[1], CC.MMapFile[2], CC.MMapFile[3], CC.MMapFile[4], CC.MMapFile[5]) 
-
+	lib.ClearImageCache()
 	lib.PicLoadFile(CC.MMAPPicFile[1],CC.MMAPPicFile[2],0)
 	lib.PicLoadFile(CC.HeadPicFile[1],CC.HeadPicFile[2],1)
-	if CC.LoadThingPic==1 then
-		lib.PicLoadFile(CC.ThingPicFile[1],CC.ThingPicFile[2],2)
-	end
+    lib.PicLoadFile(CC.ThingPicFile[1],CC.ThingPicFile[2],2)
 
 	JY.EnterSceneXY=nil         --设为空，强制重新生成场景入口数据。防止有事件更改了场景入口。
 	JY.old_mainmap_x=-1
@@ -1833,20 +1425,17 @@ end
 
 
 function RunMainMapFrame()      --主地图
-
-	local direct = -1
+    RunPlayerFrame()
+	local direction = nil
 	local keypress = lib.GetKey()
-
 	-- Hack by Neo
 	-- exit the gmae
-	if keypress == -2 then
+	if keypress == VK_QUIT then
 		JY.game_status = GAME_STATUS_END
 		return
 	end
-
-	--[[
-	if keypress ~= -1 then
-		JY.MyTick=0
+	if keypress ~= VK_NULL then
+		JY.my_tick=0
 		if keypress==VK_ESCAPE then
 			ShowMainMenu()
 			if JY.game_status==GAME_STATUS_MAINMAP_INIT then
@@ -1855,66 +1444,28 @@ function RunMainMapFrame()      --主地图
 			JY.old_mainmap_x=-1         --强制重绘
 			JY.old_mainmap_y=-1
 		elseif keypress==VK_UP then
-			direct=0
+			direction=0
 		elseif keypress==VK_DOWN then
-			direct=3
+			direction=3
 		elseif keypress==VK_LEFT then
-			direct=2
+			direction=2
 		elseif keypress==VK_RIGHT then
-			direct=1
+			direction=1
 		end
 	end
-	--]]
-	
-	if keypress ~= -1 then
-		JY.MyTick = 0
-		local case = {
-			[VK_ESCAPE] = function()
-				ShowMainMenu()
-				if JY.game_status == GAME_STATUS_MAINMAP_INIT then
-					return
-				end
-				JY.old_mainmap_x = -1
-				JY.old_mainmap_y = -1
-			end,
-
-			[VK_UP] = function()
-				direct = 0
-			end,
-
-			[VK_DOWN] = function()
-				direct = 3
-			end,
-
-			[VK_LEFT] = function()
-				direct = 2
-			end,
-
-			[VK_RIGHT] = function()
-				direct = 1
-			end
-		}
-
-		if case[keypress] then
-			case[keypress]()
-		end
-	end
-
-
 	local x,y              --按照方向键要到达的坐标
-	if direct ~= -1 then   --按下了光标键
+	if direction then   --按下了光标键
 		AddMyCurrentPic()         --增加主角贴图编号，产生走路效果
-		x=JY.base["人X"]+CC.DirectX[direct+1]
-		y=JY.base["人Y"]+CC.DirectY[direct+1]
-		JY.base["人方向"]=direct
+		x=JY.base["人X"]+CC.DirectX[direction+1]
+		y=JY.base["人Y"]+CC.DirectY[direction+1]
+		JY.base["人方向"]=direction
 	else
 		x=JY.base["人X"]
 		y=JY.base["人Y"]
 	end
-
 	JY.subscene=CanEnterScene(x,y)   --判断是否进入子场景
-
-	if lib.GetMMap(x,y,3)==0 and lib.GetMMap(x,y,4)==0 then     --没有建筑，可以到达
+	if lib.GetMMap(x,y,3)==0 and lib.GetMMap(x,y,4)==0 then
+        --没有建筑，可以到达
 		JY.base["人X"]=x
 		JY.base["人Y"]=y
 	end
@@ -1926,68 +1477,47 @@ function RunMainMapFrame()      --主地图
 	else
 		JY.base["乘船"]=0
 	end
-
 	local pic=GetMyPic()
-
+    --Render screen
 	lib.DrawMMap(JY.base["人X"],JY.base["人Y"],pic)             --显示主地图
-
 	if CC.showCoordinate then
 		DrawText(10,CC.ScreenH-20,string.format("%d %d",JY.base["人X"],JY.base["人Y"]) ,C_GOLD,16)
 	end
-
 	UpdateScreen()
 	lib.SetClip(0,0,0,0)
-
 	JY.old_mainmap_x = JY.base["人X"]
 	JY.old_mainmap_y = JY.base["人Y"]
 	JY.old_mainmap_pic = pic
-
 	if JY.subscene >= 0 then          --进入子场景
-		CollectGarbage()
-		lib.UnloadMMap()
-		lib.PicInit()
-		--lib.AudioFadeOut(1000)
+		CleanLuaGarbage()
 		lib.FadeOut(50)
-
 		JY.game_status=GAME_STATUS_SCENE
 		JY.mainmap_music=-1
-
 		JY.MyPic=GetMyPic()
 		JY.base["人X1"]=JY.scenes[JY.subscene]["入口X"]
 		JY.base["人Y1"]=JY.scenes[JY.subscene]["入口Y"]
-
 		InitScene(true)
 	end
-
 end
 
 -- InitScren(showname)
 -- @param: bool showname: true 显示场景名; false 不显示。
 
 function InitScene(showname)   --初始化场景数据
-	lib.PicInit()
+	lib.ClearImageCache()
 	lib.PicLoadFile(CC.SMAPPicFile[1],CC.SMAPPicFile[2],0)
 	lib.PicLoadFile(CC.HeadPicFile[1],CC.HeadPicFile[2],1)
-	if CC.LoadThingPic==1 then
-		lib.PicLoadFile(CC.ThingPicFile[1],CC.ThingPicFile[2],2)
-	end
-
+    lib.PicLoadFile(CC.ThingPicFile[1],CC.ThingPicFile[2],2)
 	PlayMIDI(JY.scenes[JY.subscene]["进门音乐"])
-
 	JY.old_scene_x=-1
 	JY.old_scene_y=-1
-
 	JY.subscene_x=0
 	JY.subscene_y=0
 	JY.OldDPass=-1
-
 	JY.D_Valid=nil
-
 	DrawSMap()
 	lib.FadeIn(50)
-	--lib.GetKey()
 	ClearKeyBuffer()
-
 	if showname then
 		--DrawStrBox(-1,10,JY.scenes[JY.subscene]["名称"],C_WHITE,CC.DefaultFontSize)
 		DrawStrBox(-1, -1, JY.scenes[JY.subscene]["名称"], C_WHITE, CC.DefaultFontSize)
@@ -2007,21 +1537,18 @@ end
 --id2 贴图文件加载编号
 --返回，裁剪矩形 {x1,y1,x2,y2}
 function Cal_PicClip(dx1,dy1,pic1,id1,dx2,dy2,pic2,id2)   --计算贴图改变形成的Clip裁剪
-
 	local w1,h1,x1_off,y1_off=lib.PicGetXY(id1,pic1*2)
 	local old_r={}
 	old_r.x1=CC.XScale*(dx1-dy1)+CC.ScreenW/2-x1_off
 	old_r.y1=CC.YScale*(dx1+dy1)+CC.ScreenH/2-y1_off
 	old_r.x2=old_r.x1+w1
 	old_r.y2=old_r.y1+h1
-
 	local w2,h2,x2_off,y2_off=lib.PicGetXY(id2,pic2*2)
 	local new_r={}
 	new_r.x1=CC.XScale*(dx2-dy2)+CC.ScreenW/2-x2_off
 	new_r.y1=CC.YScale*(dx2+dy2)+CC.ScreenH/2-y2_off
 	new_r.x2=new_r.x1+w2
 	new_r.y2=new_r.y1+h2
-
 	return MergeRect(old_r,new_r)
 end
 
@@ -2052,26 +1579,26 @@ end
 function GetMyPic()      --计算主角当前贴图
 	local n
 	if JY.game_status==GAME_STATUS_MAINMAP and JY.base["乘船"]==1 then
-		if JY.MyCurrentPic >=4 then
-			JY.MyCurrentPic=0
+		if JY.my_current_pic >=4 then
+			JY.my_current_pic=0
 		end
 	else
-		if JY.MyCurrentPic >6 then
-			JY.MyCurrentPic=1
+		if JY.my_current_pic >6 then
+			JY.my_current_pic=1
 		end
 	end
 
 	if JY.base["乘船"]==0 then
-		n=CC.MyStartPic+JY.base["人方向"]*7+JY.MyCurrentPic
+		n=CC.MyStartPic+JY.base["人方向"]*7+JY.my_current_pic
 	else
-		n=CC.BoatStartPic+JY.base["人方向"]*4+JY.MyCurrentPic
+		n=CC.BoatStartPic+JY.base["人方向"]*4+JY.my_current_pic
 	end
 	return n
 end
 
 --增加当前主角走路动画帧, 主地图和场景地图都使用
 function AddMyCurrentPic()        ---增加当前主角走路动画帧,
-	JY.MyCurrentPic=JY.MyCurrentPic+1
+	JY.my_current_pic=JY.my_current_pic+1
 end
 
 --场景是否可进
@@ -2079,7 +1606,7 @@ end
 --x,y 当前主地图坐标
 --返回：场景id，-1表示没有场景可进
 function CanEnterScene(x,y)         --场景是否可进
-	if JY.EnterSceneXY==nil then    --如果为空，则重新产生数据。
+	if not JY.EnterSceneXY then    --如果为空，则重新产生数据。
 		Cal_EnterSceneXY()
 	end
 
@@ -2091,7 +1618,7 @@ function CanEnterScene(x,y)         --场景是否可进
 		elseif e==1 then    --不可进
 			return -1
 		elseif e==2 then    --有轻功高者进
-			for i=1,CC.TeamNum do
+			for i=1,CC.MAX_TEAMATES do
 				local pid=JY.base["队伍" .. i]
 				if pid>=0 then
 					if JY.roles[pid]["轻功"]>=70 then
@@ -2235,6 +1762,7 @@ function Menu_ReadRecord()        --读取进度菜单
 		DrawStrBox(CC.MainSubMenuX2,CC.MainSubMenuY,"请稍候…",C_WHITE,CC.DefaultFontSize)
 		UpdateScreen()
 		LoadRecord(r)
+        --lib.FadeOut(50)
 		JY.game_status=GAME_STATUS_MAINMAP_INIT
 		return 1
 	end
@@ -2276,12 +1804,12 @@ end
 
 --队伍选择人物菜单
 function SelectTeamateInMenu(x,y)          --队伍选择人物菜单
-	return ShowVerticalMenu(GetTeamateMenu(),CC.TeamNum,0,x,y,0,0,1,1,CC.DefaultFontSize,C_ORANGE, C_WHITE)
+	return ShowVerticalMenu(GetTeamateMenu(),CC.MAX_TEAMATES,0,x,y,0,0,1,1,CC.DefaultFontSize,C_ORANGE, C_WHITE)
 end
 
 function GetNumTeamates()            --得到队友个数
-	local r=CC.TeamNum
-	for i=1,CC.TeamNum do
+	local r=CC.MAX_TEAMATES
+	for i=1,CC.MAX_TEAMATES do
 		if JY.base["队伍" .. i]<0 then
 			r=i-1
 			break
@@ -2401,10 +1929,8 @@ function ShowRoleStatus(id,page)    --显示人物状态页面
 		else
 			tmp=string.format("%5d",CC.Exp[role["等级"]])
 		end
-
 		DrawText(x1,y1+h*i,"升级",C_ORANGE,fontsize)
 		DrawText(x1+x2,y1+h*i,tmp,C_GOLD,fontsize)
-
 		local tmp1,tmp2,tmp3=0,0,0
 		if role["武器"]>-1 then
 			tmp1=tmp1+JY.items[role["武器"]]["加攻击力"]
@@ -2416,22 +1942,16 @@ function ShowRoleStatus(id,page)    --显示人物状态页面
 			tmp2=tmp2+JY.items[role["防具"]]["加防御力"]
 			tmp3=tmp3+JY.items[role["防具"]]["加轻功"]
 		end
-
 		--i=i+1
 		--DrawText(x1,y1+h*i,"左右键翻页，上下键查看其它队友",C_RED,fontsize)
-
-
 		i=0
 		x1=dx+width/2
 		DrawAttrib("攻击力",C_WHITE,C_GOLD,tmp1)
 		DrawAttrib("防御力",C_WHITE,C_GOLD,tmp2)
 		DrawAttrib("轻功",C_WHITE,C_GOLD,tmp3)
-
 		DrawAttrib("医疗能力",C_WHITE,C_GOLD)
 		DrawAttrib("用毒能力",C_WHITE,C_GOLD)
 		DrawAttrib("解毒能力",C_WHITE,C_GOLD)
-
-
 		DrawAttrib("拳掌功夫",C_WHITE,C_GOLD)
 		DrawAttrib("御剑能力",C_WHITE,C_GOLD)
 		DrawAttrib("耍刀技巧",C_WHITE,C_GOLD)
@@ -2519,7 +2039,7 @@ function Menu_Heal()       --医疗菜单
 	DrawStrBox(CC.MainSubMenuX,nexty,"医疗能力",C_ORANGE,CC.DefaultFontSize)
 
 	local menu1={}
-	for i=1,CC.TeamNum do
+	for i=1,CC.MAX_TEAMATES do
 		menu1[i]={"",nil,0}
 		local id=JY.base["队伍" .. i]
 		if id >=0 then
@@ -2532,7 +2052,7 @@ function Menu_Heal()       --医疗菜单
 
 	local id1,id2
 	nexty=nexty+CC.SingleLineHeight
-	local r=ShowVerticalMenu(menu1,CC.TeamNum,0,CC.MainSubMenuX,nexty,0,0,1,1,CC.DefaultFontSize,C_ORANGE, C_WHITE)
+	local r=ShowVerticalMenu(menu1,CC.MAX_TEAMATES,0,CC.MainSubMenuX,nexty,0,0,1,1,CC.DefaultFontSize,C_ORANGE, C_WHITE)
 
 	if r >0 then
 		id1=JY.base["队伍" .. r]
@@ -2541,7 +2061,7 @@ function Menu_Heal()       --医疗菜单
 		nexty=CC.MainSubMenuY+CC.SingleLineHeight
 
 		local menu2={}
-		for i=1,CC.TeamNum do
+		for i=1,CC.MAX_TEAMATES do
 			menu2[i]={"",nil,0}
 			local id=JY.base["队伍" .. i]
 			if id>=0 then
@@ -2550,7 +2070,7 @@ function Menu_Heal()       --医疗菜单
 			end
 		end
 
-		local r2=ShowVerticalMenu(menu2,CC.TeamNum,0,CC.MainSubMenuX,nexty,0,0,1,1,CC.DefaultFontSize,C_ORANGE,C_WHITE)
+		local r2=ShowVerticalMenu(menu2,CC.MAX_TEAMATES,0,CC.MainSubMenuX,nexty,0,0,1,1,CC.DefaultFontSize,C_ORANGE,C_WHITE)
 
 		if r2 >0 then
 			id2=JY.base["队伍" .. r2]
@@ -2602,7 +2122,7 @@ function Menu_DecPoison()         --解毒
 	DrawStrBox(CC.MainSubMenuX,nexty,"解毒能力",C_ORANGE,CC.DefaultFontSize)
 
 	local menu1={}
-	for i=1,CC.TeamNum do
+	for i=1,CC.MAX_TEAMATES do
 		menu1[i]={"",nil,0}
 		local id=JY.base["队伍" .. i]
 		if id>=0 then
@@ -2615,7 +2135,7 @@ function Menu_DecPoison()         --解毒
 
 	local id1,id2
 	nexty=nexty+CC.SingleLineHeight
-	local r=ShowVerticalMenu(menu1,CC.TeamNum,0,CC.MainSubMenuX,nexty,0,0,1,1,CC.DefaultFontSize,C_ORANGE, C_WHITE)
+	local r=ShowVerticalMenu(menu1,CC.MAX_TEAMATES,0,CC.MainSubMenuX,nexty,0,0,1,1,CC.DefaultFontSize,C_ORANGE, C_WHITE)
 
 	if r >0 then
 		id1=JY.base["队伍" .. r]
@@ -2627,7 +2147,7 @@ function Menu_DecPoison()         --解毒
 		nexty=nexty+CC.SingleLineHeight
 
 		local menu2={}
-		for i=1,CC.TeamNum do
+		for i=1,CC.MAX_TEAMATES do
 			menu2[i]={"",nil,0}
 			local id=JY.base["队伍" .. i]
 			if id>=0 then
@@ -2636,7 +2156,7 @@ function Menu_DecPoison()         --解毒
 			end
 		end
 
-		local r2=ShowVerticalMenu(menu2,CC.TeamNum,0,CC.MainSubMenuX,nexty,0,0,1,1,CC.DefaultFontSize,C_ORANGE, C_WHITE)
+		local r2=ShowVerticalMenu(menu2,CC.MAX_TEAMATES,0,CC.MainSubMenuX,nexty,0,0,1,1,CC.DefaultFontSize,C_ORANGE, C_WHITE)
 		if r2 >0 then
 			id2=JY.base["队伍" .. r2]
 			local num=ExecDecPoison(id1,id2)
@@ -2665,20 +2185,20 @@ end
 function Menu_Thing()       --物品菜单
 
 	local menu = GetItemMenu()
-	--local r=ShowVerticalMenu(menu,CC.TeamNum,0,CC.MainSubMenuX,CC.MainSubMenuY,0,0,1,1,CC.DefaultFontSize,C_ORANGE, C_WHITE)
+	--local r=ShowVerticalMenu(menu,CC.MAX_TEAMATES,0,CC.MainSubMenuX,CC.MainSubMenuY,0,0,1,1,CC.DefaultFontSize,C_ORANGE, C_WHITE)
 	local r = ShowVerticalMenu3(menu, CC.MainSubMenuX, CC.MainSubMenuY)
 
 	if r>0 then
 		local items={}
 		local num_items={}
 
-		for i = 0,CC.MyThingNum-1 do
+		for i = 0,CC.MAX_PLAYER_ITEMS-1 do
 			items[i]=-1
 			num_items[i]=0
 		end
 
 		local num=0
-		for i = 0, CC.MyThingNum-1 do
+		for i = 0, CC.MAX_PLAYER_ITEMS-1 do
 			local id=JY.base["物品" .. i+1]
 			if id>=0 then
 				if r==1 then
@@ -2770,11 +2290,7 @@ function SelectThing(items,num_items)    --显示物品菜单
 				local boxy=y3_1+CC.ThingGapOut+y*(CC.ThingPicHeight+CC.ThingGapIn)
 				lib.DrawRect(boxx,boxy,boxx+CC.ThingPicWidth+1,boxy+CC.ThingPicHeight+1,boxcolor)
 				if items[id]>=0 then
-					if CC.LoadThingPic==1 then
-						lib.DrawCachedImage(2,items[id]*2,boxx+1,boxy+1,1)
-					else
-						lib.DrawCachedImage(0,(items[id]+CC.StartThingPic)*2,boxx+1,boxy+1,1)
-					end
+                    lib.DrawCachedImage(2,items[id]*2,boxx+1,boxy+1,1)
 				end
 			end
 		end
@@ -2785,7 +2301,7 @@ function SelectThing(items,num_items)    --显示物品菜单
 		if keypress==VK_ESCAPE then
 			cur_thing=-1
 			break
-		elseif keypress==VK_RETURN or keypress==VK_SPACE then
+		elseif keypress==VK_ACTION then
 			break
 		elseif keypress==VK_UP then
 			if  cur_y == 0 then
@@ -2826,17 +2342,13 @@ end
 
 --场景处理主函数
 function RunSceneFrame()         --场景处理主函数
-
-	DrawSMap(0) -- <ZG> 我把FastShowScreen控制变量去掉了，DrawSMap(0) 可以显示场景中的动画
-
+    RunPlayerFrame()
+	DrawSMap()
 	if CC.showCoordinate then
 		DrawText(10,CC.ScreenH-20,string.format("%s %d %d",JY.scenes[JY.subscene]["名称"],JY.base["人X1"],JY.base["人Y1"]) ,C_GOLD,16)
 	end
-
 	UpdateScreen()
-
 	lib.SetClip(0,0,0,0)
-
 	local d_pass=GetS(JY.subscene,JY.base["人X1"],JY.base["人Y1"],3)   --当前路过事件
 	if d_pass>=0 then
 		if d_pass ~=JY.OldDPass then     --避免重复触发
@@ -2859,17 +2371,12 @@ function RunSceneFrame()         --场景处理主函数
 
 	if exit then    --出去，返回主地图
 		JY.game_status=GAME_STATUS_MAINMAP
-
-		lib.PicInit()
-		CollectGarbage()
-		--lib.AudioFadeOut(1000)
+		CleanLuaGarbage()
 		lib.FadeOut(50)
-
 		if JY.mainmap_music < 0 then
 			JY.mainmap_music=JY.scenes[JY.subscene]["出门音乐"]
 			lib.Log(JY.scenes[JY.subscene]["出门音乐"])
 		end
-
 		InitMainMap()
 
 		JY.subscene=-1
@@ -2878,7 +2385,6 @@ function RunSceneFrame()         --场景处理主函数
 
 		lib.DrawMMap(JY.base["人X"],JY.base["人Y"],GetMyPic())
 		lib.FadeIn(50)
-		--lib.GetKey()
 		ClearKeyBuffer()
 		return
 	end
@@ -2905,22 +2411,22 @@ function RunSceneFrame()         --场景处理主函数
 
 	local x,y
 	local keypress = lib.GetKey()
-	local direct=-1
-	if keypress ~= -1 then
-		JY.MyTick=0
+	local direction = nil
+	if keypress ~= VK_NULL then
+		JY.my_tick=0
 		if keypress==VK_ESCAPE then
 			ShowMainMenu()
 			JY.old_scene_x = -1
 			JY.old_scene_y = -1
 		elseif keypress == VK_UP then
-			direct=0
+			direction=0
 		elseif keypress == VK_DOWN then
-			direct=3
+			direction=3
 		elseif keypress==VK_LEFT then
-			direct=2
+			direction=2
 		elseif keypress==VK_RIGHT then
-			direct=1
-		elseif keypress==VK_SPACE or keypress==VK_RETURN  then
+			direction=1
+		elseif keypress==VK_ACTION then
 			if JY.base["人方向"]>=0 then        --当前方向下一个位置
 				local d_num=GetS(JY.subscene,JY.base["人X1"]+CC.DirectX[JY.base["人方向"]+1],JY.base["人Y1"]+CC.DirectY[JY.base["人方向"]+1],3)
 				if d_num>=0 then
@@ -2937,11 +2443,11 @@ function RunSceneFrame()         --场景处理主函数
 		return 
 	end
 
-	if direct ~= -1 then
+	if direction then
 		AddMyCurrentPic()
-		x=JY.base["人X1"]+CC.DirectX[direct+1]
-		y=JY.base["人Y1"]+CC.DirectY[direct+1]
-		JY.base["人方向"]=direct
+		x=JY.base["人X1"]+CC.DirectX[direction+1]
+		y=JY.base["人Y1"]+CC.DirectY[direction+1]
+		JY.base["人方向"]=direction
 	else
 		x=JY.base["人X1"]
 		y=JY.base["人Y1"]
@@ -3008,7 +2514,7 @@ function DtoSMap()          ---D*中的事件处理动画效果。
 	JY.NumD_PicChange=0
 	JY.D_PicChange={}
 
-	if JY.D_Valid==nil then
+	if not JY.D_Valid then
 		Cal_D_Valid()
 	end
 
@@ -3024,11 +2530,11 @@ function DtoSMap()          ---D*中的事件处理动画效果。
 				local delay=GetD(sceneid,i,8)
 				if not (p3>=CC.SceneFlagPic[1]*2 and p3<=CC.SceneFlagPic[2]*2 and CC.ShowFlag==0) then --是否显示旗帜
 					if p3<=p1 then     --动画已停止
-						if JY.MyTick2 %100 > delay then
+						if JY.my_tick_2 %100 > delay then
 							p3=p3+2
 						end
 					else
-						if JY.MyTick2 % 4 ==0 then      --4个节拍动画增加一次
+						if JY.my_tick_2 % 4 ==0 then      --4个节拍动画增加一次
 							p3=p3+2
 						end
 					end
@@ -3049,78 +2555,12 @@ function DtoSMap()          ---D*中的事件处理动画效果。
 	end
 end
 
---fastdraw = 0 or nil 全部重绘。用于事件中
---           1 考虑脏矩形 用于显示场景循环
-function DrawSMap(fastdraw)         --绘场景地图
-	if fastdraw==nil then
-		fastdraw=0
-	end
+function DrawSMap()         --绘场景地图
 	local x0=JY.subscene_x+JY.base["人X1"]-1    --绘图中心点
 	local y0=JY.subscene_y+JY.base["人Y1"]-1
-
 	local x=Clamp(x0,CC.SceneXMin,CC.SceneXMax)-JY.base["人X1"]
 	local y=Clamp(y0,CC.SceneYMin,CC.SceneYMax)-JY.base["人Y1"]
-
-	if fastdraw==0 then
-		lib.DrawSMap(JY.subscene,JY.base["人X1"],JY.base["人Y1"],x,y,JY.MyPic)
-	else
-		if JY.old_scene_x>=0 and JY.old_scene_y>=0 and
-			JY.old_scene_x+JY.old_scene_xoff==JY.base["人X1"]+x and         --绘图中心点不变，人走路也可以用裁剪方式绘图
-			JY.old_scene_y+JY.old_scene_yoff==JY.base["人Y1"]+y then
-
-			local num_clip=0
-			local clip={}
-
-			for i=0,JY.NumD_PicChange-1 do   --计算D*中贴图改变的矩形
-				local dx=JY.D_PicChange[i].x-JY.base["人X1"]-x
-				local dy=JY.D_PicChange[i].y-JY.base["人Y1"]-y
-				clip[num_clip]=Cal_PicClip(dx,dy,JY.D_PicChange[i].p1,0,
-				dx,dy,JY.D_PicChange[i].p2,0 )
-				clip[num_clip].y1=clip[num_clip].y1-JY.D_PicChange[i].dy
-				clip[num_clip].y2=clip[num_clip].y2-JY.D_PicChange[i].dy
-				num_clip=num_clip+1
-			end
-
-			if JY.old_scene_pic>=0 then  --计算主角矩形
-				if not ( JY.old_scene_x==JY.base["人X1"] and    --主角有变化
-					JY.old_scene_y==JY.base["人Y1"] and
-					JY.old_scene_pic==JY.MyPic ) then
-					local dy1=GetS(JY.subscene,JY.base["人X1"],JY.base["人Y1"],4)   --海拔
-					local dy2=GetS(JY.subscene,JY.old_scene_x,JY.old_scene_y,4)
-					local dy=math.max(dy1,dy2)
-					clip[num_clip]=Cal_PicClip(-JY.old_scene_xoff,-JY.old_scene_yoff,JY.old_scene_pic,0,
-					-x,-y,JY.MyPic,0)
-					clip[num_clip].y1=clip[num_clip].y1- dy
-					clip[num_clip].y2=clip[num_clip].y2- dy
-					num_clip=num_clip+1
-				end
-			end
-
-			local area=0          --计算所有脏矩形面积
-			for i=0,num_clip-1 do
-				clip[i]=ClipRect(clip[i])    --矩形屏幕剪裁
-				if clip[i]~=nil then
-					area=area+(clip[i].x2-clip[i].x1)*(clip[i].y2-clip[i].y1)
-				end
-			end
-
-			if area <CC.ScreenW*CC.ScreenH/2 and num_clip<15 then        --面积足够小，矩形数目少，则更新脏矩形。
-				for i=0,num_clip-1 do
-					if clip[i]~=nil then
-						lib.SetClip(clip[i].x1,clip[i].y1,clip[i].x2,clip[i].y2)
-						lib.DrawSMap(JY.subscene,JY.base["人X1"],JY.base["人Y1"],x,y,JY.MyPic)
-					end
-				end
-			else    --面积太大，直接重绘
-				lib.SetClip(0,0,CC.ScreenW,CC.ScreenH)   --由于redraw=0，必须给出裁剪矩形以后才能UpdateScreen
-				lib.DrawSMap(JY.subscene,JY.base["人X1"],JY.base["人Y1"],x,y,JY.MyPic)
-			end
-		else
-			lib.SetClip(0,0,CC.ScreenW,CC.ScreenH)
-			lib.DrawSMap(JY.subscene,JY.base["人X1"],JY.base["人Y1"],x,y,JY.MyPic)
-		end
-	end
-
+    lib.DrawSMap(JY.subscene,JY.base["人X1"],JY.base["人Y1"],x,y,JY.MyPic)
 	JY.old_scene_x = JY.base["人X1"]
 	JY.old_scene_y = JY.base["人Y1"]
 	JY.old_scene_pic = JY.MyPic
@@ -3131,7 +2571,6 @@ end
 
 -- 读取游戏进度
 -- id=0 新进度，=1/2/3 进度
---
 --这里是先把数据读入Byte数组中。然后定义访问相应表的方法，在访问表时直接从数组访问。
 --与以前的实现相比，从文件中读取和保存到文件的时间显著加快。而且内存占用少了
 function LoadRecord(id)       -- 读取游戏进度
@@ -3255,8 +2694,7 @@ function LoadRecord(id)       -- 读取游戏进度
 	--lib.LoadSMap(CC.S_Filename[id],CC.TempS_Filename,JY.num_scenes,CC.SWidth,CC.SHeight,CC.D_Filename[id],CC.DNum,11)
 	lib.LoadSMap(CC.S_Filename[id], CC.D_Filename[id])
 	collectgarbage()
-
-	lib.Log(string.format("Loadrecord time=%d",lib.GetTime()-t1))
+	--lib.Log(string.format("Loadrecord time=%d",lib.GetTime()-t1))
 end
 
 -- 写游戏进度
@@ -3420,17 +2858,17 @@ end
 
 -- Add by Neo
 function ClearKeyBuffer()
-	while lib.GetKey() ~= -1 do
+	while lib.GetKey() ~= VK_NULL do
 		do end
 	end
 end
 		
 --等待键盘输入
 function WaitKey()       --等待键盘输入
-	local key=-1
+	local key = "null"
 	while true do
-		key=lib.GetKey()
-		if key ~=-1 then
+		key = lib.GetKey()
+		if key ~= "null" then
 			break
 		end
 		lib.Delay(20)
@@ -3579,9 +3017,6 @@ end
 --播放midi
 function PlayMIDI(id)             --播放midi
 	JY.current_midi=id
-	if not JY.music_enabled then
-		return 
-	end
 	if id>=0 then
         local str = string.format(CC.MIDIFile, id+1)
         --lib.Log(str)
@@ -3591,9 +3026,6 @@ end
 
 --播放音效atk***
 function PlayWavAtk(id)             --播放音效atk***
-	if not JY.sound_enabled then
-		return 
-	end
 	if id>=0 then
 		lib.PlayWAV(string.format(CC.ATKFile,id))
 	end
@@ -3601,9 +3033,6 @@ end
 
 --播放音效e**
 function PlayWavE(id)              --播放音效e**
-	if not JY.sound_enabled then
-		return 
-	end
 	if id>=0 then
 		lib.PlayWAV(string.format(CC.EFile,id))
 	end
@@ -4008,18 +3437,18 @@ end
 
 
 --改变大地图坐标，从场景出去后移动到相应坐标
-function ChangeMMap(x,y,direct)          --改变大地图坐标
+function ChangeMMap(x,y,direction)          --改变大地图坐标
 	JY.base["人X"]=x
 	JY.base["人Y"]=y
-	JY.base["人方向"]=direct
+	JY.base["人方向"]=direction
 end
 
 --改变当前场景
-function ChangeSMap(sceneid,x,y,direct)       --改变当前场景
+function ChangeSMap(sceneid,x,y,direction)       --改变当前场景
 	JY.subscene=sceneid
 	JY.base["人X1"]=x
 	JY.base["人Y1"]=y
-	JY.base["人方向"]=direct
+	JY.base["人方向"]=direction
 end
 
 --清除(x1,y1)-(x2,y2)矩形内的文字等。
@@ -4153,12 +3582,10 @@ function TalkEx(s,headid,flag)          --复杂版本对话
 		headid=-1
 	end
 
-	if string.find(s,"*") ==nil then
+	if not string.find(s,"*") then
 		s=GenerateTalkingText(s, 12)
 	end
 
-	lib.EnableKeyRepeat(0, CONFIG.key_repeat_interval)
-	--lib.GetKey()
 	ClearKeyBuffer()
 	local startp=1
 	local endp
@@ -4176,7 +3603,7 @@ function TalkEx(s,headid,flag)          --复杂版本对话
 			DrawDialogBorder(xy[flag].talkx, xy[flag].talky, xy[flag].talkx +boxtalkw, xy[flag].talky + boxtalkh,C_WHITE)
 		end
 		endp=string.find(s,"*",startp)
-		if endp==nil then
+		if not endp then
 			DrawText(xy[flag].talkx + 5, xy[flag].talky + 5+talkBorder + dy * (CC.DefaultFontSize+talkBorder),string.sub(s,startp),C_WHITE,CC.DefaultFontSize)
 			UpdateScreen()
 			WaitKey()
@@ -4192,9 +3619,6 @@ function TalkEx(s,headid,flag)          --复杂版本对话
 			dy=0
 		end
 	end
-
-	lib.EnableKeyRepeat(CONFIG.key_latency, CONFIG.key_repeat_interval)
-
 	Cls()
 end
 
@@ -4255,8 +3679,8 @@ end
 --从old_talk.lua中读取编号为stringId的字符串。
 --需要的时候读取，可以节约内存占用，不用再把整个文件读入内存数据了。
 function GetStringById(stringId)            --从文件读取一条对话
-	local idxfile=CC.TalkIdxFile
-	local grpfile=CC.TalkGrpFile
+    local idxfile = CC.TALK_FILE .. ".idx"
+    local grpfile = CC.TALK_FILE .. ".grp"
 
 	local length=filelength(idxfile)
 
@@ -4288,7 +3712,7 @@ end
 
 --得到物品
 function instruct_2(thingid,num)            --得到物品
-	if JY.items[thingid]==nil then   --无此物品id
+	if not JY.items[thingid] then   --无此物品id
 		return 
 	end
 
@@ -4403,12 +3827,12 @@ end
 
 
 function instruct_10(personid)            --加入队员
-	if JY.roles[personid]==nil then
+	if not JY.roles[personid] then
 		lib.Log("instruct_10 error: roles id not exist")
 		return 
 	end
 	local add=0
-	for i =2, CC.TeamNum do             --第一个位置是主角，从第二个开始
+	for i =2, CC.MAX_TEAMATES do             --第一个位置是主角，从第二个开始
 		if JY.base["队伍"..i]<0 then
 			JY.base["队伍"..i]=personid
 			add=1
@@ -4439,7 +3863,7 @@ end
 
 
 function instruct_12()             --住宿，回复体力
-	for i=1,CC.TeamNum do
+	for i=1,CC.MAX_TEAMATES do
 		local id=JY.base["队伍" .. i]
 		if id>=0 then
 			if JY.roles[id]["受伤程度"]<33 and JY.roles[id]["中毒程度"]<=0 then
@@ -4495,7 +3919,7 @@ end
 
 function instruct_16(personid)      --队伍中是否有某人
 	local r=false
-	for i = 1, CC.TeamNum do
+	for i = 1, CC.MAX_TEAMATES do
 		if personid==JY.base["队伍" .. i] then
 			r=true
 			break
@@ -4514,7 +3938,7 @@ end
 
 
 function instruct_18(thingid)           --是否有某种物品
-	for i = 1,CC.MyThingNum do
+	for i = 1,CC.MAX_PLAYER_ITEMS do
 		if JY.base["物品" .. i]==thingid then
 			return true
 		end
@@ -4532,17 +3956,17 @@ end
 
 
 function instruct_20()                 --判断队伍是否满
-	return JY.base['队伍' .. CC.TeamNum] >= 0
+	return JY.base['队伍' .. CC.MAX_TEAMATES] >= 0
 end
 
 
 function instruct_21(personid)               --离队
-	if JY.roles[personid]==nil then
+	if not JY.roles[personid] then
 		lib.Log("instruct_21 error: personid not exist")
 		return 
 	end
 	local j=0
-	for i = 1, CC.TeamNum do
+	for i = 1, CC.MAX_TEAMATES do
 		if personid==JY.base["队伍" .. i] then
 			j=i
 			break
@@ -4552,10 +3976,10 @@ function instruct_21(personid)               --离队
 		return
 	end
 
-	for  i=j+1,CC.TeamNum do
+	for  i=j+1,CC.MAX_TEAMATES do
 		JY.base["队伍" .. i-1]=JY.base["队伍" .. i]
 	end
-	JY.base["队伍" .. CC.TeamNum]=-1
+	JY.base["队伍" .. CC.MAX_TEAMATES]=-1
 
 	if JY.roles[personid]["武器"]>=0 then
 		JY.items[JY.roles[personid]["武器"]]["使用人"]=-1
@@ -4577,7 +4001,7 @@ end
 
 
 function instruct_22()            --内力降为0
-	for i = 1, CC.TeamNum do
+	for i = 1, CC.MAX_TEAMATES do
 		if JY.base["队伍" .. i] >=0 then
 			JY.roles[JY.base["队伍" .. i]]["内力"]=0
 		end
@@ -4750,12 +4174,12 @@ function instruct_30(x1,y1,x2,y2)                --主角走动
 end
 
 --主角走动sub
-function instruct_30_sub(direct)            --主角走动sub
+function instruct_30_sub(direction)            --主角走动sub
 	local x,y
 	AddMyCurrentPic()
-	x=JY.base["人X1"]+CC.DirectX[direct+1]
-	y=JY.base["人Y1"]+CC.DirectY[direct+1]
-	JY.base["人方向"]=direct
+	x=JY.base["人X1"]+CC.DirectX[direction+1]
+	y=JY.base["人Y1"]+CC.DirectY[direction+1]
+	JY.base["人方向"]=direction
 	JY.MyPic=GetMyPic()
 	DtoSMap()
 
@@ -4774,7 +4198,7 @@ end
 --判断是否够钱
 function instruct_31(num)             --判断是否够钱
 	local r=false
-	for i =1,CC.MyThingNum do
+	for i =1,CC.MAX_PLAYER_ITEMS do
 		if JY.base["物品" .. i]==CC.MoneyID then
 			if JY.base["物品数量" .. i]>=num then
 				r=true
@@ -4789,7 +4213,7 @@ end
 --num 物品数量，负数则为减少物品
 function instruct_32(thingid,num)           --增加物品
 	local p=1
-	for i=1,CC.MyThingNum do
+	for i=1,CC.MAX_PLAYER_ITEMS do
 		if JY.base["物品" .. i]==thingid then
 			JY.base["物品数量" .. i]=JY.base["物品数量" .. i]+num
 			p=i
@@ -4803,12 +4227,12 @@ function instruct_32(thingid,num)           --增加物品
 	end
 
 	if JY.base["物品数量" .. p] <=0 then
-		for i=p+1,CC.MyThingNum do
+		for i=p+1,CC.MAX_PLAYER_ITEMS do
 			JY.base["物品" .. i-1]=JY.base["物品" .. i]
 			JY.base["物品数量" .. i-1]=JY.base["物品数量" .. i]
 		end
-		JY.base["物品" .. CC.MyThingNum]=-1
-		JY.base["物品数量" .. CC.MyThingNum]=0
+		JY.base["物品" .. CC.MAX_PLAYER_ITEMS]=-1
+		JY.base["物品数量" .. CC.MAX_PLAYER_ITEMS]=0
 	end
 end
 
@@ -4934,7 +4358,7 @@ end
 
 function instruct_42()          --队伍中是否有女性
 	local r=false
-	for i =1,CC.TeamNum do
+	for i =1,CC.MAX_TEAMATES do
 		if JY.base["队伍" .. i] >=0 then
 			if JY.roles[JY.base["队伍" .. i]]["性别"]==1 then
 				r=true
@@ -5193,7 +4617,7 @@ end
 
 --全体队员离队
 function instruct_59()           --全体队员离队
-	for i=CC.TeamNum,2,-1 do
+	for i=CC.MAX_TEAMATES,2,-1 do
 		if JY.base["队伍" .. i]>=0 then
 			instruct_21(JY.base["队伍" .. i])
 		end
@@ -5415,8 +4839,8 @@ function WarMain(warid,isexp)           --战斗主函数
 	WarSelectTeam()          --选择我方
 	WarSelectEnemy()         --选择敌人
 
-	CollectGarbage()
-	lib.PicInit()
+	CleanLuaGarbage()
+	lib.ClearImageCache()
 	--lib.AudioFadeOut(1000)
 	lib.FadeOut(50)
 
@@ -5427,9 +4851,7 @@ function WarMain(warid,isexp)           --战斗主函数
 	--加载贴图文件
 	lib.PicLoadFile(CC.WMAPPicFile[1],CC.WMAPPicFile[2],0)
 	lib.PicLoadFile(CC.HeadPicFile[1],CC.HeadPicFile[2],1)
-	if CC.LoadThingPic==1 then
-		lib.PicLoadFile(CC.ThingPicFile[1],CC.ThingPicFile[2],2)
-	end
+    lib.PicLoadFile(CC.ThingPicFile[1],CC.ThingPicFile[2],2)
 	lib.PicLoadFile(CC.EffectFile[1],CC.EffectFile[2],3)
 
 	PlayMIDI(WAR.Data["音乐"])
@@ -5445,9 +4867,7 @@ function WarMain(warid,isexp)           --战斗主函数
 		string.format(CC.FightPicFile[2],JY.roles[pid]["头像代号"]),
 		4+i)
 	end
-
 	while true do             --战斗主循环
-
 		for i=0,WAR.num_roles-1 do
 			WAR.roles[i]["贴图"]=WarCalPersonPic(i)
 		end
@@ -5459,25 +4879,19 @@ function WarMain(warid,isexp)           --战斗主函数
 			end
 			WAR.roles[i]["移动步数"]=move
 		end
-
 		WarSetPerson()     --设置战斗人物位置
-
 		local p=0
 		while p<WAR.num_roles do       --每回合战斗循环，每个人轮流战斗
 			collectgarbage("step",0)
 			WAR.Effect=0
 			if WAR.AutoFight==1 then                 --我方自动战斗时读取键盘，看是否取消
 				local keypress=lib.GetKey()
-				if keypress==VK_SPACE or keypress==VK_RETURN then
+				if keypress==VK_ACTION then
 					WAR.AutoFight=0
 				end
 			end
-
-
 			if WAR.roles[p]["死亡"]==false then
-
 				WAR.CurID=p
-
 				if first==0 then              --第一次渐亮显示
 					WarDrawMap(0)
 					lib.FadeIn(50)
@@ -5487,7 +4901,6 @@ function WarMain(warid,isexp)           --战斗主函数
 					--WarShowHead()
 					--                    UpdateScreen()
 				end
-
 				local r
 				if WAR.roles[p]["我方"]==true then
 					if WAR.AutoFight==0 then
@@ -5498,32 +4911,23 @@ function WarMain(warid,isexp)           --战斗主函数
 				else
 					r=War_Auto()                  --自动战斗
 				end
-
 				warStatus=War_isEnd()        --战斗是否结束？   0继续，1赢，2输
-
 				if math.abs(r)==7 then         --等待
 					p=p-1
 				end
-
 				if warStatus>0 then
 					break
 				end
-
 			end
 			p=p+1
 		end
-
 		if warStatus>0 then
 			break
 		end
-
 		War_PersonLostLife()
 	end
-
 	local r
-
 	WAR.ShowHead=0
-
 	if warStatus==1 then
 		DrawStrBoxWaitKey("战斗胜利",C_WHITE,CC.DefaultFontSize)
 		r=true
@@ -5531,28 +4935,20 @@ function WarMain(warid,isexp)           --战斗主函数
 		DrawStrBoxWaitKey("战斗失败",C_WHITE,CC.DefaultFontSize)
 		r=false
 	end
-
 	War_EndPersonData(isexp,warStatus)    --战斗后设置人物参数
-
 	--lib.AudioFadeOut(1000)
 	lib.FadeOut(50)
-
 	if JY.scenes[JY.subscene]["进门音乐"]>=0 then
 		PlayMIDI(JY.scenes[JY.subscene]["进门音乐"])
 	else
 		PlayMIDI(0)
 	end
-
-	CollectGarbage()
-	lib.PicInit()
+	CleanLuaGarbage()
+	lib.ClearImageCache()
 	lib.PicLoadFile(CC.SMAPPicFile[1],CC.SMAPPicFile[2],0)
 	lib.PicLoadFile(CC.HeadPicFile[1],CC.HeadPicFile[2],1)
-	if CC.LoadThingPic==1 then
-		lib.PicLoadFile(CC.ThingPicFile[1],CC.ThingPicFile[2],2)
-	end
-
+    lib.PicLoadFile(CC.ThingPicFile[1],CC.ThingPicFile[2],2)
 	JY.game_status=GAME_STATUS_SCENE
-
 	return r
 end
 
@@ -5816,7 +5212,7 @@ function War_PersonTrainDrug(pid)         --战斗后是否修炼出物品
 
 	local haveMaterial=0       --是否有需要的材料
 	local MaterialNum=-1
-	for i=1,CC.MyThingNum do
+	for i=1,CC.MAX_PLAYER_ITEMS do
 		if JY.base["物品" .. i]==JY.items[thingid]["需材料"] then
 			haveMaterial=1
 			MaterialNum=JY.base["物品数量" .. i]
@@ -5915,7 +5311,7 @@ function WarSelectTeam()            --选择我方参战人
 		return 
 	end
 
-	for i=1,CC.TeamNum do                 --设置事先确定的参战人
+	for i=1,CC.MAX_TEAMATES do                 --设置事先确定的参战人
 		WAR.SelectPerson[i]=0
 		local id=JY.base["队伍" .. i]
 		if id>=0 then
@@ -5928,7 +5324,7 @@ function WarSelectTeam()            --选择我方参战人
 	end
 
 	local menu={}
-	for i=1, CC.TeamNum do
+	for i=1, CC.MAX_TEAMATES do
 		menu[i]={"",WarSelectMenu,0}
 		local id=JY.base["队伍" .. i]
 		if id>=0 then
@@ -5942,13 +5338,13 @@ function WarSelectTeam()            --选择我方参战人
 		end
 	end
 
-	menu[CC.TeamNum+1]={" 结束",nil,1}
+	menu[CC.MAX_TEAMATES+1]={" 结束",nil,1}
 
 	while true do
 		Cls()
 		local x=(CC.ScreenW-7*CC.DefaultFontSize-2*CC.MenuBorderPixel)/2
 		DrawStrBox(x,10,"请选择参战人物",C_WHITE,CC.DefaultFontSize)
-		local r=ShowVerticalMenu(menu,CC.TeamNum+1,0,x,10+CC.SingleLineHeight,0,0,1,0,CC.DefaultFontSize,C_ORANGE,C_WHITE)
+		local r=ShowVerticalMenu(menu,CC.MAX_TEAMATES+1,0,x,10+CC.SingleLineHeight,0,0,1,0,CC.DefaultFontSize,C_ORANGE,C_WHITE)
 		Cls()
 
 		for i=1,6 do
@@ -6405,7 +5801,7 @@ function War_SelectMove()              ---选择移动位置
 			x2=x-1
 		elseif key==VK_RIGHT then
 			x2=x+1
-		elseif key==VK_SPACE or key==VK_RETURN then
+		elseif key==VK_ACTION then
 			return x,y
 		elseif key==VK_ESCAPE then
 			return nil
@@ -6432,16 +5828,16 @@ function War_MovePerson(x,y)            --移动人物到位置x,y
 		movetable[i].y=y
 		if GetWarMap(x-1,y,3)==i-1 then
 			x=x-1
-			movetable[i].direct=1
+			movetable[i].direction=1
 		elseif GetWarMap(x+1,y,3)==i-1 then
 			x=x+1
-			movetable[i].direct=2
+			movetable[i].direction=2
 		elseif GetWarMap(x,y-1,3)==i-1 then
 			y=y-1
-			movetable[i].direct=3
+			movetable[i].direction=3
 		elseif GetWarMap(x,y+1,3)==i-1 then
 			y=y+1
-			movetable[i].direct=0
+			movetable[i].direction=0
 		end
 	end
 
@@ -6453,7 +5849,7 @@ function War_MovePerson(x,y)            --移动人物到位置x,y
 
 		WAR.roles[WAR.CurID]["坐标X"]=movetable[i].x
 		WAR.roles[WAR.CurID]["坐标Y"]=movetable[i].y
-		WAR.roles[WAR.CurID]["人方向"]=movetable[i].direct
+		WAR.roles[WAR.CurID]["人方向"]=movetable[i].direction
 		WAR.roles[WAR.CurID]["贴图"]=WarCalPersonPic(WAR.CurID)
 
 		SetWarMap(WAR.roles[WAR.CurID]["坐标X"],WAR.roles[WAR.CurID]["坐标Y"],2,WAR.CurID)
@@ -6600,10 +5996,10 @@ function War_FightSelectType0(kongfus,level,x1,y1)          --选择点攻击
 	local y0=WAR.roles[WAR.CurID]["坐标Y"]
 	War_CalMoveStep(WAR.CurID,JY.kongfus[kongfus]["移动范围" .. level],1)
 
-	if x1==nil and y1==nil then
+	if not x1 and not y1 then
 		x1,y1=War_SelectMove()              --选择攻击对象
 	end
-	if x1 ==nil then
+	if not x1 then
 		--lib.GetKey()
 		ClearKeyBuffer()
 		Cls()
@@ -6621,29 +6017,28 @@ function War_FightSelectType0(kongfus,level,x1,y1)          --选择点攻击
 end
 
 --选择线攻击
---direct 攻击方向，为空则手工设置
+--direction 攻击方向，为空则手工设置
 function War_FightSelectType1(kongfus,level,x,y)            --选择线攻击
 	local x0=WAR.roles[WAR.CurID]["坐标X"]
 	local y0=WAR.roles[WAR.CurID]["坐标Y"]
-	local direct
+	local direction = nil
 
-	if x==nil and y==nil  then
-		direct =-1
+	if not x and not y  then
 		DrawStrBox(CC.MainSubMenuX,CC.MainSubMenuY,"请选择攻击方向",C_ORANGE,CC.DefaultFontSize)
 		UpdateScreen()
 
 		while true do           --选择方向
 			local key=WaitKey()
 			if key==VK_UP then
-				direct=0
+				direction=0
 			elseif key==VK_DOWN then
-				direct=3
+				direction=3
 			elseif key==VK_LEFT then
-				direct=2
+				direction=2
 			elseif key==VK_RIGHT then
-				direct=1
+				direction=1
 			end
-			if direct>=0 then
+			if direction then
 				break
 			end
 		end
@@ -6651,36 +6046,36 @@ function War_FightSelectType1(kongfus,level,x,y)            --选择线攻击
 		Cls(CC.MainSubMenuX,CC.MainSubMenuY,CC.ScreenW,CC.ScreenH)
 		UpdateScreen()
 	else
-		direct=War_Direct(x0,y0,x,y)
+		direction=War_Direct(x0,y0,x,y)
 	end
 
-	WAR.roles[WAR.CurID]["人方向"]=direct
+	WAR.roles[WAR.CurID]["人方向"]=direction
 	local move=JY.kongfus[kongfus]["移动范围" .. level]
 
 	WAR.EffectXY={}
 
 	for i=1,move do
-		if direct==0 then
+		if direction==0 then
 			SetWarMap(x0,y0-i,4,1)
-		elseif direct==3 then
+		elseif direction==3 then
 			SetWarMap(x0,y0+i,4,1)
-		elseif direct==2 then
+		elseif direction==2 then
 			SetWarMap(x0-i,y0,4,1)
-		elseif direct==1 then
+		elseif direction==1 then
 			SetWarMap(x0+i,y0,4,1)
 		end
 	end
 
-	if direct==0 then
+	if direction==0 then
 		WAR.EffectXY[1]={x0,y0-1}
 		WAR.EffectXY[2]={x0,y0-move}
-	elseif direct==3 then
+	elseif direction==3 then
 		WAR.EffectXY[1]={x0,y0+1}
 		WAR.EffectXY[2]={x0,y0+move}
-	elseif direct==2 then
+	elseif direction==2 then
 		WAR.EffectXY[1]={x0-1,y0}
 		WAR.EffectXY[2]={x0-move,y0}
-	elseif direct==1 then
+	elseif direction==1 then
 		WAR.EffectXY[1]={x0+1,y0}
 		WAR.EffectXY[2]={x0+move,y0}
 	end
@@ -6715,11 +6110,11 @@ function War_FightSelectType3(kongfus,level,x1,y1)            --选择面攻击
 	local y0=WAR.roles[WAR.CurID]["坐标Y"]
 	War_CalMoveStep(WAR.CurID,JY.kongfus[kongfus]["移动范围" .. level],1)
 
-	if x1==nil and y1==nil then
+	if not x1 and not y1 then
 		x1,y1=War_SelectMove()              --选择攻击对象
 	end
 
-	if x1 ==nil then
+	if not x1 then
 		--lib.GetKey()
 		ClearKeyBuffer()
 		Cls()
@@ -7171,7 +6566,7 @@ function War_ExecuteMenu(flag,thingid)            ---执行医疗，解毒用毒暗器
 
 	local x1,y1=War_SelectMove()              --选择攻击对象
 
-	if x1 ==nil then
+	if not x1 then
 		--lib.GetKey()
 		ClearKeyBuffer()
 		Cls()
@@ -7265,13 +6660,13 @@ function War_ThingMenu()            --战斗物品菜单
 	local items={}
 	local num_items={}
 
-	for i = 0,CC.MyThingNum-1 do
+	for i = 0,CC.MAX_PLAYER_ITEMS-1 do
 		items[i]=-1
 		num_items[i]=0
 	end
 
 	local num=0
-	for i = 0,CC.MyThingNum-1 do
+	for i = 0,CC.MAX_PLAYER_ITEMS-1 do
 		local id = JY.base["物品" .. i+1]
 		if id>=0 then
 			if JY.items[id]["类型"]==3 or JY.items[id]["类型"]==4 then
@@ -7538,7 +6933,7 @@ function War_ThinkDrug(flag)             --能否吃药增加参数
 	end
 
 	if WAR.roles[WAR.CurID]["我方"]==true then
-		for i =1, CC.MyThingNum do
+		for i =1, CC.MAX_PLAYER_ITEMS do
 			local thingid=JY.base["物品" ..i]
 			if thingid>=0 then
 				if JY.items[thingid]["类型"]==3 and Get_Add(thingid)>0 then
@@ -7802,7 +7197,7 @@ function War_AutoMove(num_kongfus)              --自动往敌人方向移动
 		x,y=War_GetCanFightEnemyXY(scope)       --计算可以攻击到敌人的最近位置
 
 		local minDest=math.huge
-		if x==nil then   --无法走到可以攻击敌人的地方，可能敌人被围住，或者被敌人围住。
+		if not x then   --无法走到可以攻击敌人的地方，可能敌人被围住，或者被敌人围住。
 			local enemyid=War_AutoSelectEnemy()   --选择最近敌人
 
 			War_CalMoveStep(WAR.CurID,100,0)   --计算移动步数 假设最大100步
@@ -7929,10 +7324,10 @@ function War_AutoCalMaxEnemyMap(wugongid,level)       --计算地图上每个位置可以攻
 				WAR.roles[n]["我方"] ~=WAR.roles[WAR.CurID]["我方"] then   --敌人
 				local xx=WAR.roles[n]["坐标X"]
 				local yy=WAR.roles[n]["坐标Y"]
-				for direct=0,3 do
+				for direction=0,3 do
 					for i=1,movescope do
-						local xnew=xx+CC.DirectX[direct+1]*i
-						local ynew=yy+CC.DirectY[direct+1]*i
+						local xnew=xx+CC.DirectX[direction+1]*i
+						local ynew=yy+CC.DirectY[direction+1]*i
 						if xnew>=0 and xnew<CC.WarWidth and ynew>=0 and ynew<CC.WarHeight then
 							local v=GetWarMap(xnew,ynew,4)
 							SetWarMap(xnew,ynew,4,v+1)
@@ -7989,11 +7384,11 @@ function War_AutoCalMaxEnemy(x,y,wugongid,level)       --计算从(x,y)开始攻击最多
 		end
 
 	elseif wugongtype==1 then    --线攻击
-		for direct=0,3 do           -- 对每个方向循环，找出敌人最多的
+		for direction=0,3 do           -- 对每个方向循环，找出敌人最多的
 			local enemynum=0
 			for i=1,movescope do
-				local xnew=x+CC.DirectX[direct+1]*i
-				local ynew=y+CC.DirectY[direct+1]*i
+				local xnew=x+CC.DirectX[direction+1]*i
+				local ynew=y+CC.DirectY[direction+1]*i
 
 				if xnew>=0 and xnew<CC.WarWidth and ynew>=0 and ynew<CC.WarHeight then
 					local id=GetWarMap(xnew,ynew,2)
@@ -8006,17 +7401,17 @@ function War_AutoCalMaxEnemy(x,y,wugongid,level)       --计算从(x,y)开始攻击最多
 			end
 			if enemynum>maxnum then        --记录最多敌人和位置
 				maxnum=enemynum
-				xmax=x+CC.DirectX[direct+1]       --线攻击记录一个代表方向的坐标
-				ymax=y+CC.DirectY[direct+1]
+				xmax=x+CC.DirectX[direction+1]       --线攻击记录一个代表方向的坐标
+				ymax=y+CC.DirectY[direction+1]
 			end
 		end
 
 	elseif wugongtype==2 then --十字攻击
 		local enemynum=0
-		for direct=0,3 do           -- 对每个方向循环
+		for direction=0,3 do           -- 对每个方向循环
 			for i=1,movescope do
-				local xnew=x+CC.DirectX[direct+1]*i
-				local ynew=y+CC.DirectY[direct+1]*i
+				local xnew=x+CC.DirectX[direction+1]*i
+				local ynew=y+CC.DirectY[direction+1]*i
 				if xnew>=0 and xnew<CC.WarWidth and ynew>=0 and ynew<CC.WarHeight then
 					local id=GetWarMap(xnew,ynew,2)
 					if id>=0 then
@@ -8136,7 +7531,7 @@ function War_AutoEatDrug(flag)          ---吃药加参数
 
 	if WAR.roles[WAR.CurID]["我方"]==true then
 		local extra=0
-		for i =1, CC.MyThingNum do
+		for i =1, CC.MAX_PLAYER_ITEMS do
 			local thingid=JY.base["物品" ..i]
 			if thingid>=0 then
 				local add=Get_Add(thingid)
@@ -8156,7 +7551,7 @@ function War_AutoEatDrug(flag)          ---吃药加参数
 		end
 		if extra==1 then
 			minvalue=math.huge
-			for i =1, CC.MyThingNum do
+			for i =1, CC.MAX_PLAYER_ITEMS do
 				local thingid=JY.base["物品" ..i]
 				if thingid>=0 then
 					local add=Get_Add(thingid)

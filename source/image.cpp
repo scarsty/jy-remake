@@ -364,64 +364,56 @@ struct JyPicCache {
 
 #define 				PIC_FILE_NUM 40	//缓存的贴图文件(idx/grp)个数
 static TPicFileCache pic_file[PIC_FILE_NUM];
-LIST_HEAD(cache_head);			//定义cache链表头
+LIST_HEAD(g_cacheHead);			//定义cache链表头
 
 static int s_current_cache_num = 0;	// 当前使用的cache数
 static int g_MAXCacheNum = 1000;	// 最大Cache个数
 static int s_caching_fail_count = 0;
 
-// 初始化Cache数据。游戏开始时调用
-int Init_Cache(void)
+// 初始化贴图cache信息
+// paletteFilename 为256调色板文件。第一次调用时载入
+// 为空字符串则表示重新清空贴图cache信息。在主地图/场景/战斗切换时调用
+int ImageCache_Init(void)
 {
-	int i;
+	int i = 0;
 	for (i = 0; i < PIC_FILE_NUM; i++) {
 		pic_file[i].num = 0;
 		pic_file[i].idx = NULL;
 		pic_file[i].grp = NULL;
-		//pic_file[i].fp = NULL;
         pic_file[i].rw = NULL;
 		pic_file[i].pcache = NULL;
 	}
 	return 0;
 }
 
-
-
-// 初始化贴图cache信息
-// paletteFilename 为256调色板文件。第一次调用时载入
-// 为空字符串则表示重新清空贴图cache信息。在主地图/场景/战斗切换时调用
-int JY_PicInit(void)
+void ImageCache_Clear(void)
 {
-
-	struct list_head *pos, *p;
-	int i;
-
-	//LoadColorMap(paletteFilename);   //载入调色板
-
+    struct list_head *pos = NULL;
+    struct list_head *p = NULL;
+    int i = 0;
 	//如果链表不为空，删除全部链表
-	list_for_each_safe(pos, p, &cache_head) {
+	list_for_each_safe(pos, p, &g_cacheHead) {
 		TCacheNode *tmp = list_entry(pos, TCacheNode, list);
 		if (tmp->s != NULL)
 			SDL_FreeSurface(tmp->s);	//删除表面
 		list_del(pos);
 		Util_free(tmp);
 	}
-
 	for (i = 0; i < PIC_FILE_NUM; i++) {
 		pic_file[i].num = 0;
 		Util_free(pic_file[i].idx);
 		Util_free(pic_file[i].grp);
 		Util_free(pic_file[i].pcache);
-//		if (pic_file[i].fp) {
-//			fclose(pic_file[i].fp);
-//			pic_file[i].fp = NULL;
-//		}
 	}
-
 	s_current_cache_num = 0;
 	s_caching_fail_count = 0;
-	return 0;
 }
+
+void ImageCache_Quit(void)
+{
+    ImageCache_Clear();
+}
+
 
 // 加载文件信息
 // filename 文件名 
@@ -461,7 +453,6 @@ int JY_PicLoadFile(const char *idxfilename, const char *grpfilename, int fileid)
 	// 读取idx文件
 
     std::auto_ptr<RWops> rw(new RWops(idxfilename, "r"));
-    //pic_file[fileid].num = Util_GetFileLength(idxfilename) / 4;	//idx 贴图个数
     pic_file[fileid].num = rw->getLength() / 4;
     pic_file[fileid].idx = (int *) Util_malloc((pic_file[fileid].num + 1) * 4);
     //读取贴图idx文件
@@ -471,7 +462,6 @@ int JY_PicLoadFile(const char *idxfilename, const char *grpfilename, int fileid)
 
 	//读取grp文件
     rw.reset(new RWops(grpfilename, "r"));
-    //pic_file[fileid].filelength = Util_GetFileLength(grpfilename);
     pic_file[fileid].filelength = rw->getLength();
     pic_file[fileid].grp = (unsigned char *) Util_malloc(pic_file[fileid].filelength);
     rw->read(pic_file[fileid].grp, 1, pic_file[fileid].filelength);
@@ -581,18 +571,18 @@ int Image_DrawCachedImage(int fileid, int picid, int x, int y, int flag, int val
 		pic_file[fileid].pcache[picid] = newcache;
 		//cache没满
 		if (s_current_cache_num < g_MAXCacheNum) {
-			list_add(&newcache->list, &cache_head);	//加载到表头
+			list_add(&newcache->list, &g_cacheHead);	//加载到表头
 			s_current_cache_num++;
 		}
 		//cache 已满
 		else {
-			tmpcache = list_entry(cache_head.prev, TCacheNode, list);	//最后一个cache
+			tmpcache = list_entry(g_cacheHead.prev, TCacheNode, list);	//最后一个cache
 			pic_file[tmpcache->fileid].pcache[tmpcache->id] = NULL;
 			if (tmpcache->s)
 				SDL_FreeSurface(tmpcache->s);	//删除表面
 			list_del(&tmpcache->list);
 			Util_free(tmpcache);
-			list_add(&newcache->list, &cache_head);	//加载到表头
+			list_add(&newcache->list, &g_cacheHead);	//加载到表头
 			s_caching_fail_count++;
 			if (s_caching_fail_count % 100 == 1)
 				Log("Picture cache is full!");
@@ -601,7 +591,7 @@ int Image_DrawCachedImage(int fileid, int picid, int x, int y, int flag, int val
 	//已加载贴图
 		newcache = pic_file[fileid].pcache[picid];
 		list_del(&newcache->list);	//把这个cache从链表摘出
-		list_add(&newcache->list, &cache_head);	//再插入到表头
+		list_add(&newcache->list, &g_cacheHead);	//再插入到表头
 	}
 	//贴图为空，直接退出
 	if (!newcache->s) {

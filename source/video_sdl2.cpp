@@ -28,6 +28,117 @@ static const char *jy_iconic_title =
     "\xe9\x87\x91\xe5\xba\xb8\xe7\xbe\xa4\xe4\xbe\xa0\xe4\xbc\xa0";
 
 //////////////////////////////////////////////////////////////////////////////////////////
+// Window
+//////////////////////////////////////////////////////////////////////////////////////////
+
+class Window {
+private:
+    SDL_Window *_window;
+public:
+    Window(const char *title, int x, int y, int w, int h, Uint32 flags);
+    ~Window() throw();
+    operator SDL_Window*() const { return _window; }
+    SDL_Window *get() const { return _window; }
+};
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// class Renderer
+//////////////////////////////////////////////////////////////////////////////////////////
+
+class Renderer {
+private:
+    SDL_Renderer *_renderer;
+public:
+    Renderer(SDL_Window *window, int index, Uint32 flags);
+    ~Renderer() throw();
+    operator SDL_Renderer*() const { return _renderer; }
+    SDL_Renderer *get() const { return _renderer; }
+};
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// class Texture
+//////////////////////////////////////////////////////////////////////////////////////////
+
+class Texture {
+private:
+    SDL_Texture *_texture;
+public:
+    //typedef std::shared_ptr<Texture> pointer;
+    Texture(SDL_Renderer *renderer, Uint32 format, int access, int w, int h);
+    Texture(SDL_Renderer *renderer, const char *filename);
+    Texture(SDL_Renderer *renderer, Surface& surf);
+    ~Texture() throw();
+    operator SDL_Texture*() const { return _texture; }
+    SDL_Texture *get() const { return _texture; }
+};
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// class Window
+//////////////////////////////////////////////////////////////////////////////////////////
+
+Window::Window(const char *title, int x, int y, int w, int h, Uint32 flags)
+{
+    _window = SDL_CreateWindow(title, x, y, w, h, flags);
+    if (!_window) {
+        throw HardwareException("SDL_CreateWindow() failed.");
+    }
+}
+
+Window::~Window() throw()
+{
+    SDL_DestroyWindow(_window);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// class Renderer
+//////////////////////////////////////////////////////////////////////////////////////////
+
+Renderer::Renderer(SDL_Window *window, int index, Uint32 flags)
+{
+    _renderer = SDL_CreateRenderer(window, index, flags);
+    if (!_renderer) {
+        DLOG("error :%s", SDL_GetError());
+        throw HardwareException("SDL_CreateRenderer() failed.");
+    }
+}
+
+Renderer::~Renderer() throw()
+{
+    SDL_DestroyRenderer(_renderer);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// class Texture
+//////////////////////////////////////////////////////////////////////////////////////////
+
+Texture::Texture(SDL_Renderer *renderer, Uint32 format, int access, int w, int h)
+{
+    _texture = SDL_CreateTexture(renderer, format, access, w, h);
+}
+
+Texture::Texture(SDL_Renderer *renderer, const char *filename)
+{
+    Surface surf(filename);
+    _texture = SDL_CreateTextureFromSurface(renderer, surf);
+    if (!_texture) {
+        throw HardwareException("SDL_CreateTextureFromSurface() failed.");
+    }
+}
+
+Texture::Texture(SDL_Renderer *renderer, Surface& surf)
+{
+    _texture = SDL_CreateTextureFromSurface(renderer, surf);
+    if (!_texture) {
+        throw HardwareException("SDL_CreateTextureFromSurface() failed.");
+    }
+}
+
+Texture::~Texture() throw()
+{
+    SDL_DestroyTexture(_texture);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
 // Sdl2VideoIniter
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -131,9 +242,8 @@ int Video_Init(int w, int h)
     return 0;
 }
 
-#if 0
-unsigned char icon_data =
-#include "icondata.c"
+unsigned char icon_data[] =
+#include "icondata.cpp"
 ;
 // 设置窗口图标
 static SDL_Surface *the_logo = NULL;
@@ -148,7 +258,7 @@ static void SetSDLWindowIcon(void)
 	SDL_WM_SetIcon(the_logo, NULL);
 }
 #endif
-static void SetSDLWindowIcon(void)
+static void SetSdl2WindowIcon(SDL_Window *win)
 {
 	SDL_RWops *rw;
 	SDL_Surface *icon = NULL;
@@ -158,11 +268,11 @@ static void SetSDLWindowIcon(void)
 	SDL_FreeRW(rw);
 	//SDL_SetColorKey(icon, SDL_SRCCOLORKEY, SDL_MapRGB(icon->format, 255, 0, 255));
 	SDL_SetColorKey(icon, SDL_TRUE, SDL_MapRGB(icon->format, 255, 0, 255));
-	SDL_WM_SetIcon(icon, NULL);
+	//SDL_WM_SetIcon(icon, NULL);
+    SDL_SetWindowIcon(win, icon);
 	SDL_FreeSurface(icon);
 
 }
-#endif
 
 //绘水平线
 static void HLine32(int x1, int x2, int y, int color, unsigned char *vbuffer, int lpitch)
@@ -226,17 +336,15 @@ static void HLine32(int x1, int x2, int y, int color, unsigned char *vbuffer, in
 }
 
 //绘垂直线
-static void VLine32(int y1, int y2, int x, int color, unsigned char *vbuffer, int lpitch)
+static void VLine32(int y1, int y2, int x, int color, unsigned char *vbuffer, 
+        int lpitch)
 {
 
 	int temp;
 	int i;
 	int max_x, max_y, min_x, min_y;
 	Uint8 *vbuffer2;
-	int bpp;
     SDL_Surface *surface = Video::getInstance()->getSurface();
-
-	bpp = surface->format->BytesPerPixel;
 
 	min_x = surface->clip_rect.x;
 	min_y = surface->clip_rect.y;
@@ -259,7 +367,14 @@ static void VLine32(int y1, int y2, int x, int color, unsigned char *vbuffer, in
 	y1 = ((y1 < min_y) ? min_y : y1);
 	y2 = ((y2 > max_y) ? max_y : y2);
 
-	vbuffer2 = vbuffer + y1 * lpitch + x * bpp;
+	vbuffer2 = vbuffer + y1 * lpitch + x * 4;
+    for (i = 0; i <= y2 - y1; i++) {
+        *(Uint32 *) vbuffer2 = (Uint32) color;
+        vbuffer2 += lpitch;
+    }
+
+#if 0
+// 只支持32位色，其他色深不再支持。
 	switch (bpp) {
 	case 2:
 		for (i = 0; i <= y2 - y1; i++) {
@@ -287,6 +402,7 @@ static void VLine32(int y1, int y2, int x, int color, unsigned char *vbuffer, in
         Log("%s(): unsupported color depth.", __func__);
         break;
 	}
+#endif
 }
 
 
@@ -428,11 +544,12 @@ Sdl2Video::Sdl2Video(int ww, int wh, int sw, int sh)
     _renderer(_window, -1, SDL_RENDERER_ACCELERATED),
     _screenSurface(0, sw, sh, 32, 0, 0, 0, 0),
     _screenTexure(_renderer, SDL_PIXELFORMAT_ARGB8888,
-            SDL_TEXTUREACCESS_STATIC, sw, sh)
+            SDL_TEXTUREACCESS_STREAMING, sw, sh)
 {
     _screenSize = Size(sw, sh);
     _windowSize = Size(ww, wh);
     calcDestBlitRect(sw, sh, ww, wh, &_destBlitRect);
+    SetSdl2WindowIcon(_window);
 }
 
 

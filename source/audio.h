@@ -1,7 +1,7 @@
 #ifndef JY_AUDIO_H
 #define JY_AUDIO_H
 
-#include "sdlxx.h"
+#include <SDL_stdinc.h>
 
 int 	Audio_Init(void);
 void 	Audio_Quit(void);
